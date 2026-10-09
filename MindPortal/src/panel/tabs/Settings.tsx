@@ -68,10 +68,10 @@ export function Settings() {
             <Button size="sm" variant="brandOutline" onClick={() => setHiddenSites([])}>Show everywhere</Button>
           </div>
         )}
-        <Button size="sm" variant="ghost" className="w-full" onClick={() => chrome.storage.local.set({ fabPos: { x: 0, y: 0 }, panelPos: { x: 0, y: 0 } })}>
-          Reset button & panel position
+        <Button size="sm" variant="ghost" className="w-full" onClick={() => chrome.storage.local.set({ fabPos: { x: 0, y: 0 }, panelPos: { x: 0, y: 0 }, panelSize: { w: 400, h: 780 } })}>
+          Reset button & panel position and size
         </Button>
-        <p className="text-[11px] text-white/35">Drag the owl or the panel header to move them. Hover the owl and click × to hide it on that site. Alt+M always opens the panel.</p>
+        <p className="text-[11px] text-white/35">Drag the owl or the panel header to move them, and the panel edges to resize it. Hover the owl and click × to hide it on that site. Alt+M always opens the panel.</p>
       </div>
 
       <div className="mp-card space-y-2">

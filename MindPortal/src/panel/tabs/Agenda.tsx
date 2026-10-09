@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Bell, BellOff, ExternalLink, Plus, Trash2 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Button } from "@/components/ui/button";
 import { localDate, parseLocalDate, uid, useStored } from "@/lib/utils";
 import type { CalEvent } from "../../shared/types";
@@ -69,13 +70,15 @@ export function Agenda() {
         </div>
         <form className="space-y-2" onSubmit={(e) => { e.preventDefault(); add(); }}>
           <input className="mp-input" placeholder="Add an event" value={title} onChange={(e) => setTitle(e.target.value)} />
+          {/* picker and the month view above share the selected day */}
+          <DatePicker value={selected} onChange={setSelected} time={time} onTimeChange={setTime} eventDates={eventDates} />
           <div className="flex gap-2">
-            <input type="time" className="mp-input w-32" value={time} onChange={(e) => setTime(e.target.value)} aria-label="Time (optional)" />
-            <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" aria-label={remind ? "Reminder on" : "Reminder off"} aria-pressed={remind}
-              title={time ? "Notify me at this time" : "Set a time to get a reminder"} onClick={() => setRemind(!remind)}>
-              {remind ? <Bell className="size-4 text-(--ollie-cyan)" /> : <BellOff className="size-4" />}
+            <Button variant="ghost" size="sm" className="h-9 shrink-0" aria-pressed={remind && !!time} disabled={!time}
+              title={time ? "Notify me at this time" : "Pick a time to get a reminder"} onClick={() => setRemind(!remind)}>
+              {remind && time ? <Bell className="size-4 text-(--ollie-cyan)" /> : <BellOff className="size-4" />}
+              {remind && time ? "Remind me" : "No reminder"}
             </Button>
-            <Button type="submit" className="flex-1"><Plus className="size-4" /> Add</Button>
+            <Button type="submit" className="flex-1"><Plus className="size-4" /> Add event</Button>
           </div>
         </form>
         {dayEvents.length ? <ul>{dayEvents.map((e) => row(e))}</ul> : <p className="py-2 text-center text-sm text-white/40">Nothing planned.</p>}

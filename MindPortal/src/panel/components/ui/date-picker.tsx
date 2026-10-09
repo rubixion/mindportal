@@ -1,0 +1,192 @@
+// 21st.dev wensity/date-picker, adapted for MindPortal:
+// - single-date mode only, reusing our trimmed wensity Calendar
+// - base-ui Popover swapped for an inline popup (a portal to document.body would escape the overlay's shadow root and lose its styles)
+// - time row gains an "All day" option; tabler -> lucide; Ollie colours
+import * as React from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { CalendarDays, Clock } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+
+export interface DatePreset {
+  label: string;
+  getValue: () => Date;
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const formatDate = (d: Date) => `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}`;
+
+function startOfDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+function inDays(n: number) {
+  const d = startOfDay(new Date());
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+const DEFAULT_PRESETS: DatePreset[] = [
+  { label: "Today", getValue: () => inDays(0) },
+  { label: "Tomorrow", getValue: () => inDays(1) },
+  { label: "This weekend", getValue: () => inDays((6 - new Date().getDay() + 7) % 7) },
+  { label: "Next Monday", getValue: () => inDays(((1 - new Date().getDay() + 7) % 7) || 7) },
+  { label: "In a week", getValue: () => inDays(7) },
+];
+
+const TIME_FIELD_CLASS =
+  "cursor-pointer rounded-lg border border-white/10 bg-black/40 px-1.5 py-1 text-xs text-white outline-none focus-visible:ring-2 focus-visible:ring-(--ollie-cyan)/60 [color-scheme:dark]";
+
+/** "HH:MM" or "" (all day). */
+function TimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [h, m] = value ? value.split(":").map(Number) : [9, 0];
+  const set = (hh: number, mm: number) => onChange(`${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`);
+  return (
+    <div className="flex items-center gap-1.5 border-t border-white/10 pt-2.5">
+      <Clock className="size-3.5 shrink-0 text-white/40" />
+      <label className="flex cursor-pointer items-center gap-1.5 text-xs text-white/70">
+        <input type="checkbox" className="accent-(--ollie-cyan)" checked={!value} onChange={(e) => (e.target.checked ? onChange("") : set(h!, m!))} />
+        All day
+      </label>
+      {value && (
+        <div className="ml-auto flex items-center gap-1 text-xs">
+          <select aria-label="Hour" value={h} onChange={(e) => set(Number(e.target.value), m!)} className={TIME_FIELD_CLASS}>
+            {Array.from({ length: 24 }, (_, i) => (
+              <option key={i} value={i}>{`${i % 12 || 12} ${i < 12 ? "AM" : "PM"}`}</option>
+            ))}
+          </select>
+          <span className="text-white/40">:</span>
+          <select aria-label="Minute" value={m} onChange={(e) => set(h!, Number(e.target.value))} className={TIME_FIELD_CLASS}>
+            {Array.from({ length: 12 }, (_, i) => i * 5).concat(m! % 5 ? [m!] : []).sort((a, b) => a - b).map((i) => (
+              <option key={i} value={i}>{String(i).padStart(2, "0")}</option>
+            ))}
+          </select>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function DatePicker({
+  value,
+  onChange,
+  time,
+  onTimeChange,
+  eventDates,
+  presets = DEFAULT_PRESETS,
+  className,
+}: {
+  value: Date;
+  onChange: (d: Date) => void;
+  /** "HH:MM" or "" for all day. Omit both time props to hide the time row. */
+  time?: string;
+  onTimeChange?: (t: string) => void;
+  eventDates?: Set<string>;
+  presets?: DatePreset[];
+  className?: string;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const root = React.useRef<HTMLDivElement>(null);
+  const popup = React.useRef<HTMLDivElement>(null);
+
+  // the picker can open near the bottom of the scrolling panel, so bring it fully into view
+  React.useEffect(() => {
+    if (open) requestAnimationFrame(() => popup.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+  }, [open]);
+  const hasTime = time !== undefined && !!onTimeChange;
+
+  // click outside / Escape closes (composedPath so it works inside a shadow root)
+  React.useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (root.current && !e.composedPath().includes(root.current)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setOpen(false);
+      }
+    };
+    window.addEventListener("pointerdown", onDown, true);
+    window.addEventListener("keydown", onKey, true);
+    return () => {
+      window.removeEventListener("pointerdown", onDown, true);
+      window.removeEventListener("keydown", onKey, true);
+    };
+  }, [open]);
+
+  const label = formatDate(value) + (hasTime && time ? ` · ${new Date(2000, 0, 1, ...(time.split(":").map(Number) as [number, number])).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : hasTime ? " · All day" : "");
+
+  return (
+    <div ref={root} className={cn("relative", className)}>
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className={cn(
+          "inline-flex h-9 w-full cursor-pointer items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/30 px-3 text-sm text-white outline-none transition-colors",
+          "hover:border-white/20 focus-visible:ring-2 focus-visible:ring-(--ollie-cyan)/60",
+          open && "border-(--ollie-cyan)/60",
+        )}
+      >
+        <span className="truncate">{label}</span>
+        <CalendarDays className="size-4 shrink-0 text-white/45" />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            ref={popup}
+            role="dialog"
+            aria-label="Choose a date"
+            initial={{ opacity: 0, scale: 0.96, y: -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: -4 }}
+            transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
+            className="absolute left-0 top-full z-50 mt-1.5 w-[min(364px,calc(100vw-48px))] origin-top-left rounded-2xl border border-white/10 bg-[#121218] p-3 shadow-[0_18px_48px_-12px_rgba(0,0,0,0.7)]"
+          >
+            <div className="flex gap-3">
+              <div className="flex w-[96px] shrink-0 flex-col gap-0.5 border-r border-white/10 pr-2">
+                {presets.map((p) => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => {
+                      onChange(p.getValue());
+                      if (!hasTime) setOpen(false);
+                    }}
+                    className="cursor-pointer rounded-[10px] px-2 py-1.5 text-left text-xs font-medium text-white/55 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:bg-white/[0.06] focus-visible:outline-none"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <div className="min-w-0 flex-1 space-y-2.5">
+                <Calendar
+                  selected={value}
+                  onSelect={(d) => {
+                    onChange(d);
+                    if (!hasTime) setOpen(false);
+                  }}
+                  eventDates={eventDates ?? new Set()}
+                  className="border-0 bg-transparent p-0"
+                />
+                {hasTime && <TimePicker value={time!} onChange={onTimeChange!} />}
+              </div>
+            </div>
+            {hasTime && (
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="mt-2.5 w-full cursor-pointer rounded-lg bg-(--ollie-cyan) py-1.5 text-xs font-bold text-black hover:bg-(--ollie-cyan)/90"
+              >
+                Done
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
