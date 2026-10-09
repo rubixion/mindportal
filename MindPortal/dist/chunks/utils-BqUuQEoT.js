@@ -65,6 +65,9 @@ const DEFAULT_SESSION = {
   pomodoroSessionCount: 0,
   focusModeActive: false,
   focusModeEndTime: null,
+  focusModeStartTime: null,
+  pomodoroStartTime: null,
+  xpCreditedUntil: 0,
   lastBreakTime: Date.now(),
   currentDomain: null,
   domainStartTime: null,
@@ -121,6 +124,15 @@ function scoreColor(score) {
   if (score >= 40) return "#fb923c";
   return "#f87171";
 }
+const MIN_XP_MINUTES = 5;
+function focusXP(startMs, nowMs, plannedEndMs, creditedUntil = 0) {
+  const from = Math.max(startMs, creditedUntil);
+  const to = Math.min(nowMs, plannedEndMs);
+  const minutes = Math.floor(Math.max(0, to - from) / 6e4);
+  if (minutes < MIN_XP_MINUTES) return 0;
+  const completed = nowMs >= plannedEndMs - 1e3;
+  return completed ? Math.round(minutes * 1.5) : minutes;
+}
 function areConsecutiveDays(earlier, later) {
   if (!earlier || !later) return false;
   const a = new Date(earlier);
@@ -136,9 +148,10 @@ export {
   areConsecutiveDays as d,
   categorizeDomain as e,
   computeScore as f,
-  extractDomain as g,
-  formatDuration as h,
-  formatCountdown as i,
+  focusXP as g,
+  extractDomain as h,
+  formatDuration as i,
+  formatCountdown as j,
   scoreColor as s,
   toDateString as t
 };

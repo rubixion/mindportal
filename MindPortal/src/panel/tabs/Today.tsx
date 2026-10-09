@@ -138,6 +138,7 @@ export function Today() {
             <Button size="cta" className="w-full" onClick={() => send({ type: "ACTIVATE_FOCUS_MODE", minutes: Number(minutes), intention })}>
               <Play className="size-4" /> Start focus
             </Button>
+            <p className="text-center text-[11px] text-white/35">1 XP per focused minute · 1.5× for finishing · 5 min minimum</p>
           </>
         )}
       </div>

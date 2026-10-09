@@ -59,6 +59,10 @@ export interface ActiveSession {
   pomodoroSessionCount: number;
   focusModeActive: boolean;
   focusModeEndTime: number | null;
+  focusModeStartTime: number | null;
+  pomodoroStartTime: number | null;
+  /** XP is only paid for time after this instant, so overlapping focus + pomodoro can't double-count. */
+  xpCreditedUntil: number;
   lastBreakTime: number;
   currentDomain: string | null;
   domainStartTime: number | null;

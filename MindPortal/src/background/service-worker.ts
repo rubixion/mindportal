@@ -16,6 +16,7 @@ import {
   categorizeDomain,
   computeScore,
   areConsecutiveDays,
+  focusXP,
 } from "../shared/utils";
 import type { ActiveSession, CalEvent, DayRecord, Note, SavedPage, StreakData } from "../shared/types";
 
@@ -363,8 +364,26 @@ async function checkMidnightReset() {
 
 // ─── Pomodoro ─────────────────────────────────────────────────────────────────
 
-async function handlePomodoroEnd() {
-  const { session, settings } = await getStorage();
+/** Pays XP for the work minutes of the current pomodoro so far. Returns the updated session. */
+async function creditPomodoro(session: ActiveSession, now = Date.now()): Promise<ActiveSession> {
+  if (!session.pomodoroActive || session.pomodoroIsBreak || !session.pomodoroStartTime || !session.pomodoroEndTime) return session;
+  const xp = focusXP(session.pomodoroStartTime, now, session.pomodoroEndTime, session.xpCreditedUntil);
+  if (xp > 0) await awardXP(xp);
+  return { ...session, xpCreditedUntil: Math.max(session.xpCreditedUntil, Math.min(now, session.pomodoroEndTime)) };
+}
+
+/** Pays XP for the focus-mode minutes so far. Returns the updated session. */
+async function creditFocus(session: ActiveSession, now = Date.now()): Promise<{ session: ActiveSession; xp: number }> {
+  if (!session.focusModeActive || !session.focusModeStartTime || !session.focusModeEndTime) return { session, xp: 0 };
+  const xp = focusXP(session.focusModeStartTime, now, session.focusModeEndTime, session.xpCreditedUntil);
+  if (xp > 0) await awardXP(xp);
+  return { session: { ...session, xpCreditedUntil: Math.max(session.xpCreditedUntil, Math.min(now, session.focusModeEndTime)) }, xp };
+}
+
+async function handlePomodoroEnd(skipped = false) {
+  const storage = await getStorage();
+  const settings = storage.settings;
+  let session = storage.session;
   const record = await getTodayRecord(settings);
 
   if (session.pomodoroIsBreak) {
@@ -377,17 +396,19 @@ async function handlePomodoroEnd() {
     const updatedSession: ActiveSession = { ...session, pomodoroActive: false, pomodoroEndTime: null };
     await saveSession(updatedSession);
   } else {
-    const newSessionCount = session.pomodoroSessionCount + 1;
+    // skipping a work block early still pays for the minutes worked, but doesn't count as a finished pomodoro
+    const finished = !skipped || (session.pomodoroEndTime !== null && Date.now() >= session.pomodoroEndTime - 1_000);
+    session = await creditPomodoro(session);
+    const newSessionCount = session.pomodoroSessionCount + (finished ? 1 : 0);
     const isLongBreak = newSessionCount % 4 === 0;
     const breakMinutes = isLongBreak
       ? settings.pomodoroLongBreakMinutes
       : settings.pomodoroShortBreakMinutes;
 
-    record.pomodoroSessionsCompleted += 1;
-    await saveDayRecord(record);
-
-    // Award XP for completing a pomodoro
-    await awardXP(25);
+    if (finished) {
+      record.pomodoroSessionsCompleted += 1;
+      await saveDayRecord(record);
+    }
 
     chrome.notifications.create("pomodoro_break_start", {
       type: "basic",
@@ -401,6 +422,7 @@ async function handlePomodoroEnd() {
       ...session,
       pomodoroActive: true,
       pomodoroEndTime: endTime,
+      pomodoroStartTime: null,
       pomodoroIsBreak: true,
       pomodoroSessionCount: newSessionCount,
       lastBreakTime: Date.now(),
@@ -424,15 +446,20 @@ async function handleMessage(message: Record<string, unknown>): Promise<unknown>
   const { type } = message;
 
   if (type === "START_POMODORO") {
-    const { session, settings } = await getStorage();
+    const storage = await getStorage();
+    const settings = storage.settings;
+    // restarting mid-block pays for what was done so far, then starts fresh
+    const session = await creditPomodoro(storage.session);
     const minutes = (message["minutes"] as number | undefined) ?? settings.pomodoroWorkMinutes;
     const workMs = minutes * 60 * 1000;
-    const endTime = Date.now() + workMs;
+    const now = Date.now();
+    const endTime = now + workMs;
     await chrome.alarms.clear(ALARM_POMODORO);
     chrome.alarms.create(ALARM_POMODORO, { when: endTime });
     await saveSession({
       ...session,
       pomodoroActive: true,
+      pomodoroStartTime: now,
       pomodoroEndTime: endTime,
       pomodoroIsBreak: false,
     });
@@ -440,24 +467,25 @@ async function handleMessage(message: Record<string, unknown>): Promise<unknown>
   }
 
   if (type === "PAUSE_POMODORO") {
-    const { session } = await getStorage();
+    const session = await creditPomodoro((await getStorage()).session);
     await chrome.alarms.clear(ALARM_POMODORO);
-    await saveSession({ ...session, pomodoroActive: false, pomodoroEndTime: null });
+    await saveSession({ ...session, pomodoroActive: false, pomodoroEndTime: null, pomodoroStartTime: null });
     return { ok: true };
   }
 
   if (type === "SKIP_POMODORO") {
     await chrome.alarms.clear(ALARM_POMODORO);
-    await handlePomodoroEnd();
+    await handlePomodoroEnd(true);
     return { ok: true };
   }
 
   if (type === "STOP_POMODORO") {
-    const { session } = await getStorage();
+    const session = await creditPomodoro((await getStorage()).session);
     await chrome.alarms.clear(ALARM_POMODORO);
     await saveSession({
       ...session,
       pomodoroActive: false,
+      pomodoroStartTime: null,
       pomodoroEndTime: null,
       pomodoroIsBreak: false,
       pomodoroSessionCount: 0,
@@ -466,13 +494,16 @@ async function handleMessage(message: Record<string, unknown>): Promise<unknown>
   }
 
   if (type === "ACTIVATE_FOCUS_MODE") {
-    const { session, settings } = await getStorage();
+    const storage = await getStorage();
+    const settings = storage.settings;
+    const { session } = await creditFocus(storage.session);
     const minutes = (message["minutes"] as number | undefined) ?? settings.focusModeDefaultMinutes;
     const intention = (message["intention"] as string | undefined) ?? "";
-    const endTime = Date.now() + minutes * 60 * 1000;
+    const now = Date.now();
+    const endTime = now + minutes * 60 * 1000;
     await chrome.alarms.clear(ALARM_FOCUS_MODE);
     chrome.alarms.create(ALARM_FOCUS_MODE, { when: endTime });
-    await saveSession({ ...session, focusModeActive: true, focusModeEndTime: endTime, intention });
+    await saveSession({ ...session, focusModeActive: true, focusModeStartTime: now, focusModeEndTime: endTime, intention });
     if (intention) {
       await addIntentionRecord({
         text: intention,
@@ -540,12 +571,6 @@ async function handleMessage(message: Record<string, unknown>): Promise<unknown>
     return { ok: true };
   }
 
-  if (type === "AWARD_XP") {
-    const amount = (message["amount"] as number | undefined) ?? 5;
-    const result = await awardXP(amount);
-    return { ok: true, ...result };
-  }
-
   if (type === "SET_INTENTION") {
     const { session } = await getStorage();
     const intention = (message["intention"] as string | undefined) ?? "";
@@ -568,16 +593,13 @@ async function handleMessage(message: Record<string, unknown>): Promise<unknown>
 }
 
 async function deactivateFocusMode() {
-  const { session, delayQueue } = await getStorage();
+  const storage = await getStorage();
+  const { delayQueue } = storage;
   await chrome.alarms.clear(ALARM_FOCUS_MODE);
-  await saveSession({ ...session, focusModeActive: false, focusModeEndTime: null, intention: "" });
-
-  // Award XP for completing a focus session
-  if (session.focusModeEndTime) {
-    const plannedMs = session.focusModeEndTime - (session.focusModeEndTime - (session.focusModeActive ? 0 : 0));
-    void plannedMs; // elapsed XP calculation handled separately
-    await awardXP(20);
-  }
+  if (!storage.session.focusModeActive) return; // already ended (alarm and tick can both get here)
+  // XP from the minutes actually focused, not a flat reward per session
+  const { session, xp } = await creditFocus(storage.session);
+  await saveSession({ ...session, focusModeActive: false, focusModeStartTime: null, focusModeEndTime: null, intention: "" });
 
   // Open any queued sites the user flagged during focus
   if (delayQueue.length > 0) {
@@ -590,9 +612,8 @@ async function deactivateFocusMode() {
   chrome.notifications.create("focus_mode_end", {
     type: "basic",
     iconUrl: chrome.runtime.getURL("assets/icons/icon48.png"),
-    title: "Focus session complete.",
-    message: session.intention
-      ? `You were working on: ${session.intention}`
-      : "Nice work. Distracting sites are unblocked.",
+    title: xp > 0 ? `Focus session complete. +${xp} XP` : "Focus session ended.",
+    message: (session.intention ? `You were working on: ${session.intention}. ` : "Distracting sites are unblocked. ") +
+      (xp > 0 ? "" : "Sessions under 5 minutes don't earn XP."),
   });
 }

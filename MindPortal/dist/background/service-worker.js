@@ -1,4 +1,4 @@
-import { D as DEFAULT_PET, a as DEFAULT_SESSION, b as DEFAULT_STREAK, c as DEFAULT_SETTINGS, t as toDateString, d as areConsecutiveDays, e as categorizeDomain, f as computeScore, g as extractDomain } from "../chunks/utils-DbjaE0J_.js";
+import { D as DEFAULT_PET, a as DEFAULT_SESSION, b as DEFAULT_STREAK, c as DEFAULT_SETTINGS, t as toDateString, d as areConsecutiveDays, e as categorizeDomain, f as computeScore, g as focusXP, h as extractDomain } from "../chunks/utils-BqUuQEoT.js";
 const scriptRel = "modulepreload";
 const assetsURL = function(dep) {
   return "/" + dep;
@@ -141,14 +141,15 @@ async function savePetState(pet) {
 }
 async function awardXP(amount) {
   const raw = await chrome.storage.local.get(["xp", "level"]);
-  const currentXP = (raw["xp"] ?? 0) + amount;
-  const currentLevel = raw["level"] ?? 1;
-  const xpForNextLevel = currentLevel * 100;
-  const leveledUp = currentXP >= xpForNextLevel;
-  const newLevel = leveledUp ? currentLevel + 1 : currentLevel;
-  const newXP = leveledUp ? currentXP - xpForNextLevel : currentXP;
-  await chrome.storage.local.set({ xp: newXP, level: newLevel });
-  return { xp: newXP, level: newLevel, leveledUp };
+  let xp = (raw["xp"] ?? 0) + Math.max(0, Math.floor(amount));
+  const startLevel = raw["level"] ?? 1;
+  let level = startLevel;
+  while (xp >= level * 100) {
+    xp -= level * 100;
+    level++;
+  }
+  await chrome.storage.local.set({ xp, level });
+  return { xp, level, leveledUp: level > startLevel };
 }
 async function addIntentionRecord(record) {
   const raw = await chrome.storage.local.get("intentionHistory");
@@ -450,8 +451,22 @@ async function checkMidnightReset() {
     });
   }
 }
-async function handlePomodoroEnd() {
-  const { session, settings } = await getStorage();
+async function creditPomodoro(session, now = Date.now()) {
+  if (!session.pomodoroActive || session.pomodoroIsBreak || !session.pomodoroStartTime || !session.pomodoroEndTime) return session;
+  const xp = focusXP(session.pomodoroStartTime, now, session.pomodoroEndTime, session.xpCreditedUntil);
+  if (xp > 0) await awardXP(xp);
+  return { ...session, xpCreditedUntil: Math.max(session.xpCreditedUntil, Math.min(now, session.pomodoroEndTime)) };
+}
+async function creditFocus(session, now = Date.now()) {
+  if (!session.focusModeActive || !session.focusModeStartTime || !session.focusModeEndTime) return { session, xp: 0 };
+  const xp = focusXP(session.focusModeStartTime, now, session.focusModeEndTime, session.xpCreditedUntil);
+  if (xp > 0) await awardXP(xp);
+  return { session: { ...session, xpCreditedUntil: Math.max(session.xpCreditedUntil, Math.min(now, session.focusModeEndTime)) }, xp };
+}
+async function handlePomodoroEnd(skipped = false) {
+  const storage2 = await getStorage();
+  const settings = storage2.settings;
+  let session = storage2.session;
   const record = await getTodayRecord();
   if (session.pomodoroIsBreak) {
     chrome.notifications.create("pomodoro_work_start", {
@@ -463,12 +478,15 @@ async function handlePomodoroEnd() {
     const updatedSession = { ...session, pomodoroActive: false, pomodoroEndTime: null };
     await saveSession(updatedSession);
   } else {
-    const newSessionCount = session.pomodoroSessionCount + 1;
+    const finished = !skipped || session.pomodoroEndTime !== null && Date.now() >= session.pomodoroEndTime - 1e3;
+    session = await creditPomodoro(session);
+    const newSessionCount = session.pomodoroSessionCount + (finished ? 1 : 0);
     const isLongBreak = newSessionCount % 4 === 0;
     const breakMinutes = isLongBreak ? settings.pomodoroLongBreakMinutes : settings.pomodoroShortBreakMinutes;
-    record.pomodoroSessionsCompleted += 1;
-    await saveDayRecord(record);
-    await awardXP(25);
+    if (finished) {
+      record.pomodoroSessionsCompleted += 1;
+      await saveDayRecord(record);
+    }
     chrome.notifications.create("pomodoro_break_start", {
       type: "basic",
       iconUrl: chrome.runtime.getURL("assets/icons/icon48.png"),
@@ -480,6 +498,7 @@ async function handlePomodoroEnd() {
       ...session,
       pomodoroActive: true,
       pomodoroEndTime: endTime,
+      pomodoroStartTime: null,
       pomodoroIsBreak: true,
       pomodoroSessionCount: newSessionCount,
       lastBreakTime: Date.now()
@@ -498,37 +517,42 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 async function handleMessage(message) {
   const { type } = message;
   if (type === "START_POMODORO") {
-    const { session, settings } = await getStorage();
+    const storage2 = await getStorage();
+    const settings = storage2.settings;
+    const session = await creditPomodoro(storage2.session);
     const minutes = message["minutes"] ?? settings.pomodoroWorkMinutes;
     const workMs = minutes * 60 * 1e3;
-    const endTime = Date.now() + workMs;
+    const now = Date.now();
+    const endTime = now + workMs;
     await chrome.alarms.clear(ALARM_POMODORO);
     chrome.alarms.create(ALARM_POMODORO, { when: endTime });
     await saveSession({
       ...session,
       pomodoroActive: true,
+      pomodoroStartTime: now,
       pomodoroEndTime: endTime,
       pomodoroIsBreak: false
     });
     return { ok: true };
   }
   if (type === "PAUSE_POMODORO") {
-    const { session } = await getStorage();
+    const session = await creditPomodoro((await getStorage()).session);
     await chrome.alarms.clear(ALARM_POMODORO);
-    await saveSession({ ...session, pomodoroActive: false, pomodoroEndTime: null });
+    await saveSession({ ...session, pomodoroActive: false, pomodoroEndTime: null, pomodoroStartTime: null });
     return { ok: true };
   }
   if (type === "SKIP_POMODORO") {
     await chrome.alarms.clear(ALARM_POMODORO);
-    await handlePomodoroEnd();
+    await handlePomodoroEnd(true);
     return { ok: true };
   }
   if (type === "STOP_POMODORO") {
-    const { session } = await getStorage();
+    const session = await creditPomodoro((await getStorage()).session);
     await chrome.alarms.clear(ALARM_POMODORO);
     await saveSession({
       ...session,
       pomodoroActive: false,
+      pomodoroStartTime: null,
       pomodoroEndTime: null,
       pomodoroIsBreak: false,
       pomodoroSessionCount: 0
@@ -536,13 +560,16 @@ async function handleMessage(message) {
     return { ok: true };
   }
   if (type === "ACTIVATE_FOCUS_MODE") {
-    const { session, settings } = await getStorage();
+    const storage2 = await getStorage();
+    const settings = storage2.settings;
+    const { session } = await creditFocus(storage2.session);
     const minutes = message["minutes"] ?? settings.focusModeDefaultMinutes;
     const intention = message["intention"] ?? "";
-    const endTime = Date.now() + minutes * 60 * 1e3;
+    const now = Date.now();
+    const endTime = now + minutes * 60 * 1e3;
     await chrome.alarms.clear(ALARM_FOCUS_MODE);
     chrome.alarms.create(ALARM_FOCUS_MODE, { when: endTime });
-    await saveSession({ ...session, focusModeActive: true, focusModeEndTime: endTime, intention });
+    await saveSession({ ...session, focusModeActive: true, focusModeStartTime: now, focusModeEndTime: endTime, intention });
     if (intention) {
       await addIntentionRecord({
         text: intention,
@@ -605,11 +632,6 @@ async function handleMessage(message) {
     await saveSettings2(message["settings"]);
     return { ok: true };
   }
-  if (type === "AWARD_XP") {
-    const amount = message["amount"] ?? 5;
-    const result = await awardXP(amount);
-    return { ok: true, ...result };
-  }
   if (type === "SET_INTENTION") {
     const { session } = await getStorage();
     const intention = message["intention"] ?? "";
@@ -628,13 +650,12 @@ async function handleMessage(message) {
   return { error: "Unknown message type" };
 }
 async function deactivateFocusMode() {
-  const { session, delayQueue } = await getStorage();
+  const storage2 = await getStorage();
+  const { delayQueue } = storage2;
   await chrome.alarms.clear(ALARM_FOCUS_MODE);
-  await saveSession({ ...session, focusModeActive: false, focusModeEndTime: null, intention: "" });
-  if (session.focusModeEndTime) {
-    session.focusModeEndTime - (session.focusModeEndTime - (session.focusModeActive ? 0 : 0));
-    await awardXP(20);
-  }
+  if (!storage2.session.focusModeActive) return;
+  const { session, xp } = await creditFocus(storage2.session);
+  await saveSession({ ...session, focusModeActive: false, focusModeStartTime: null, focusModeEndTime: null, intention: "" });
   if (delayQueue.length > 0) {
     for (const domain of delayQueue) {
       await chrome.tabs.create({ url: `https://${domain}`, active: false });
@@ -644,7 +665,7 @@ async function deactivateFocusMode() {
   chrome.notifications.create("focus_mode_end", {
     type: "basic",
     iconUrl: chrome.runtime.getURL("assets/icons/icon48.png"),
-    title: "Focus session complete.",
-    message: session.intention ? `You were working on: ${session.intention}` : "Nice work. Distracting sites are unblocked."
+    title: xp > 0 ? `Focus session complete. +${xp} XP` : "Focus session ended.",
+    message: (session.intention ? `You were working on: ${session.intention}. ` : "Distracting sites are unblocked. ") + (xp > 0 ? "" : "Sessions under 5 minutes don't earn XP.")
   });
 }

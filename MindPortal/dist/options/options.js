@@ -1,5 +1,5 @@
 import "../chunks/modulepreload-polyfill-DaKOjhqt.js";
-import { c as DEFAULT_SETTINGS, t as toDateString, f as computeScore, h as formatDuration, g as extractDomain } from "../chunks/utils-DbjaE0J_.js";
+import { c as DEFAULT_SETTINGS, t as toDateString, f as computeScore, i as formatDuration, h as extractDomain } from "../chunks/utils-BqUuQEoT.js";
 /*!
  * @kurkle/color v0.3.4
  * https://github.com/kurkle/color#readme

@@ -92,14 +92,16 @@ export async function savePetState(pet: PetState): Promise<void> {
 
 export async function awardXP(amount: number): Promise<{ xp: number; level: number; leveledUp: boolean }> {
   const raw = await chrome.storage.local.get(["xp", "level"]);
-  const currentXP = ((raw["xp"] as number | undefined) ?? 0) + amount;
-  const currentLevel = (raw["level"] as number | undefined) ?? 1;
-  const xpForNextLevel = currentLevel * 100;
-  const leveledUp = currentXP >= xpForNextLevel;
-  const newLevel = leveledUp ? currentLevel + 1 : currentLevel;
-  const newXP = leveledUp ? currentXP - xpForNextLevel : currentXP;
-  await chrome.storage.local.set({ xp: newXP, level: newLevel });
-  return { xp: newXP, level: newLevel, leveledUp };
+  let xp = ((raw["xp"] as number | undefined) ?? 0) + Math.max(0, Math.floor(amount));
+  const startLevel = (raw["level"] as number | undefined) ?? 1;
+  let level = startLevel;
+  // a long session can be worth more than one level
+  while (xp >= level * 100) {
+    xp -= level * 100;
+    level++;
+  }
+  await chrome.storage.local.set({ xp, level });
+  return { xp, level, leveledUp: level > startLevel };
 }
 
 export async function addIntentionRecord(record: IntentionRecord): Promise<void> {

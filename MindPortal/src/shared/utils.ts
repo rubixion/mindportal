@@ -78,6 +78,23 @@ export function scoreColor(score: number): string {
   return "#f87171"; // red
 }
 
+export const MIN_XP_MINUTES = 5;
+
+/**
+ * XP for one focus block, from the time actually spent:
+ * 1 XP per full minute, x1.5 if the block ran to its planned end, nothing under 5 minutes.
+ * Only time after `creditedUntil` counts, so starting/stopping repeatedly or running focus mode and a
+ * pomodoro at once never pays for the same minute twice.
+ */
+export function focusXP(startMs: number, nowMs: number, plannedEndMs: number, creditedUntil = 0): number {
+  const from = Math.max(startMs, creditedUntil);
+  const to = Math.min(nowMs, plannedEndMs);
+  const minutes = Math.floor(Math.max(0, to - from) / 60_000);
+  if (minutes < MIN_XP_MINUTES) return 0;
+  const completed = nowMs >= plannedEndMs - 1_000;
+  return completed ? Math.round(minutes * 1.5) : minutes;
+}
+
 /** Checks whether two YYYY-MM-DD date strings are consecutive calendar days. */
 export function areConsecutiveDays(earlier: string, later: string): boolean {
   if (!earlier || !later) return false;

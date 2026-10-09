@@ -1,5 +1,5 @@
 import "../chunks/modulepreload-polyfill-DaKOjhqt.js";
-import { t as toDateString, s as scoreColor, h as formatDuration, i as formatCountdown, c as DEFAULT_SETTINGS, b as DEFAULT_STREAK, a as DEFAULT_SESSION } from "../chunks/utils-DbjaE0J_.js";
+import { t as toDateString, s as scoreColor, i as formatDuration, j as formatCountdown, c as DEFAULT_SETTINGS, b as DEFAULT_STREAK, a as DEFAULT_SESSION } from "../chunks/utils-BqUuQEoT.js";
 var jsxRuntime = { exports: {} };
 var reactJsxRuntime_production = {};
 /**
