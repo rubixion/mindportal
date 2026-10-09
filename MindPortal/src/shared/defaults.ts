@@ -49,6 +49,7 @@ export const DEFAULT_SETTINGS: Settings = {
   popupSize: "normal",
   animationsEnabled: true,
   languageGoal: "",
+  showOverlayButton: true,
 };
 
 export const DEFAULT_PET: PetState = {

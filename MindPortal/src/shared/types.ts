@@ -27,6 +27,7 @@ export interface Settings {
   popupSize: PopupSize;
   animationsEnabled: boolean;
   languageGoal: string;
+  showOverlayButton: boolean;
 }
 
 export interface PetState {
@@ -84,4 +85,48 @@ export interface TabTimeEvent {
   domain: string;
   seconds: number;
   category: SiteCategory;
+}
+
+// ─── Overlay panel data (all stored in chrome.storage.local) ──────────────────
+
+export interface Note {
+  id: string;
+  title: string;
+  body: string;
+  pinned: boolean;
+  url?: string;
+  updated: number;
+}
+
+export interface ListItem {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
+export interface TodoList {
+  id: string;
+  name: string;
+  items: ListItem[];
+}
+
+export interface CalEvent {
+  id: string;
+  title: string;
+  date: string; // YYYY-MM-DD (local)
+  time: string; // HH:MM or ""
+  remind: boolean;
+}
+
+export interface Habit {
+  id: string;
+  name: string;
+  days: string[]; // YYYY-MM-DD dates completed
+}
+
+export interface SavedPage {
+  id: string;
+  title: string;
+  url: string;
+  added: number;
 }

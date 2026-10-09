@@ -8,11 +8,10 @@
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
-    />
+    />
     <script type="module" crossorigin src="/options/options.js"></script>
     <link rel="modulepreload" crossorigin href="/chunks/modulepreload-polyfill-DaKOjhqt.js">
-    <link rel="modulepreload" crossorigin href="/chunks/utils-DXHU2JcO.js">
-    <link rel="modulepreload" crossorigin href="/chunks/defaults-FIaPJ9Pi.js">
+    <link rel="modulepreload" crossorigin href="/chunks/utils-DbjaE0J_.js">
     <link rel="stylesheet" crossorigin href="/assets/options.css">
   </head>
   <body>
@@ -213,6 +212,10 @@
             <input type="checkbox" id="g-grace-period" />
             <span class="toggle-label">Enable grace period (allow one missed day without breaking streak)</span>
           </label>
+          <label class="toggle-row">
+            <input type="checkbox" id="g-overlay-button" />
+            <span class="toggle-label">Show the floating MindPortal button on web pages (Alt+M always works)</span>
+          </label>
         </div>
 
         <div class="save-row">
@@ -257,7 +260,7 @@
         </div>
       </div>
     </main>
-
+
     <!-- Chart.js loaded locally via npm or CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   </body>

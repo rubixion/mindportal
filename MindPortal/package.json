@@ -1,11 +1,11 @@
 {
   "name": "focusforge",
   "version": "1.0.0",
-  "description": "FocusForge — Forge your focus, one day at a time.",
+  "description": "FocusForge \u00e2\u20ac\u201d Forge your focus, one day at a time.",
   "scripts": {
     "prebuild": "node scripts/generate-icons.js",
-    "dev": "node scripts/generate-icons.js && vite build --watch",
-    "build": "vite build",
+    "dev": "node scripts/generate-icons.js && vite build && vite build -c vite.content.config.mts --watch",
+    "build": "vite build && vite build -c vite.content.config.mts",
     "lint": "eslint src tests --ext .ts",
     "lint:fix": "eslint src tests --ext .ts --fix",
     "format": "prettier --write \"src/**/*.{ts,html,css}\" \"tests/**/*.ts\"",
@@ -13,17 +13,29 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
     "@types/chrome": "^0.0.268",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "@vitejs/plugin-react": "^4.7.0",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
     "prettier": "^3.2.5",
+    "tailwindcss": "^4.3.3",
     "typescript": "^5.4.5",
     "vite": "^5.2.10",
     "vitest": "^1.5.0"
   },
   "dependencies": {
-    "chart.js": "^4.5.1"
+    "chart.js": "^4.5.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.53.0",
+    "motion": "^14.0.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "tailwind-merge": "^3.7.0"
   }
 }

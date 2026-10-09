@@ -17,7 +17,7 @@ import {
   computeScore,
   areConsecutiveDays,
 } from "../shared/utils";
-import type { ActiveSession, DayRecord, StreakData } from "../shared/types";
+import type { ActiveSession, CalEvent, DayRecord, Note, SavedPage, StreakData } from "../shared/types";
 
 // Alarm names
 const ALARM_TICK = "mp_tick";
@@ -25,11 +25,88 @@ const ALARM_MIDNIGHT = "mp_midnight";
 const ALARM_BREAK_REMINDER = "mp_break_reminder";
 const ALARM_POMODORO = "mp_pomodoro";
 const ALARM_FOCUS_MODE = "mp_focus_mode";
+const ALARM_EVENT = "mp_event_";
+
+// ─── Overlay panel: toggle, calendar reminders, quick capture ────────────────
+
+/** Toggles the in-page panel, injecting the content script first into tabs opened before install. */
+async function togglePanel(tabId?: number): Promise<boolean> {
+  if (tabId === undefined) {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    tabId = tab?.id;
+  }
+  if (tabId === undefined) return false;
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: "MP_TOGGLE_PANEL" });
+    return true;
+  } catch {
+    try {
+      await chrome.scripting.executeScript({ target: { tabId }, files: ["content/content-script.js"] });
+      await chrome.tabs.sendMessage(tabId, { type: "MP_TOGGLE_PANEL" });
+      return true;
+    } catch {
+      return false; // chrome:// pages, the Web Store, etc.
+    }
+  }
+}
+
+/** One alarm per future event that has a time and a reminder. */
+async function syncEventAlarms() {
+  const { events } = await chrome.storage.local.get("events");
+  const existing = (await chrome.alarms.getAll()).filter((a) => a.name.startsWith(ALARM_EVENT));
+  await Promise.all(existing.map((a) => chrome.alarms.clear(a.name)));
+  for (const e of (events as CalEvent[] | undefined) ?? []) {
+    if (!e.remind || !e.time) continue;
+    const [y, m, d] = e.date.split("-").map(Number);
+    const [h, min] = e.time.split(":").map(Number);
+    const when = new Date(y!, m! - 1, d!, h!, min!).getTime();
+    if (when > Date.now()) chrome.alarms.create(ALARM_EVENT + e.id, { when });
+  }
+}
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes["events"]) void syncEventAlarms();
+});
+
+chrome.commands.onCommand.addListener((command, tab) => {
+  if (command === "toggle-panel") void togglePanel(tab?.id);
+});
+
+const newId = () => crypto.randomUUID();
+
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId === "mp_save_selection" && info.selectionText) {
+    const { notesV2 } = await chrome.storage.local.get("notesV2");
+    const note: Note = {
+      id: newId(),
+      title: `Clip: ${tab?.title ?? "web page"}`.slice(0, 120),
+      body: info.selectionText,
+      pinned: false,
+      updated: Date.now(),
+      ...(tab?.url ? { url: tab.url } : {}),
+    };
+    await chrome.storage.local.set({ notesV2: [note, ...((notesV2 as Note[] | undefined) ?? [])] });
+  } else if (info.menuItemId === "mp_save_link" || info.menuItemId === "mp_save_page") {
+    const url = info.menuItemId === "mp_save_link" ? info.linkUrl : (info.pageUrl ?? tab?.url);
+    if (!url) return;
+    const title = info.menuItemId === "mp_save_link" ? (info.selectionText ?? url) : (tab?.title ?? url);
+    const { saved } = await chrome.storage.local.get("saved");
+    const list = (saved as SavedPage[] | undefined) ?? [];
+    if (!list.some((p) => p.url === url)) {
+      await chrome.storage.local.set({ saved: [{ id: newId(), title, url, added: Date.now() }, ...list] });
+    }
+  }
+});
 
 // ─── Install / Startup ────────────────────────────────────────────────────────
 
 chrome.runtime.onInstalled.addListener(async (_details) => {
   await setupAlarms();
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({ id: "mp_save_selection", title: "Save selection to MindPortal notes", contexts: ["selection"] });
+    chrome.contextMenus.create({ id: "mp_save_link", title: "Save link to MindPortal", contexts: ["link"] });
+    chrome.contextMenus.create({ id: "mp_save_page", title: "Save page to MindPortal", contexts: ["page"] });
+  });
 });
 
 chrome.runtime.onStartup.addListener(async () => {
@@ -39,6 +116,7 @@ chrome.runtime.onStartup.addListener(async () => {
 
 async function setupAlarms() {
   await chrome.alarms.clearAll();
+  await syncEventAlarms();
 
   // Tick every 10 seconds to flush accumulated time
   chrome.alarms.create(ALARM_TICK, { periodInMinutes: 10 / 60 });
@@ -216,6 +294,19 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
   if (alarm.name === ALARM_FOCUS_MODE) {
     await deactivateFocusMode();
+  }
+
+  if (alarm.name.startsWith(ALARM_EVENT)) {
+    const { events } = await chrome.storage.local.get("events");
+    const ev = ((events as CalEvent[] | undefined) ?? []).find((e) => ALARM_EVENT + e.id === alarm.name);
+    if (ev) {
+      chrome.notifications.create(alarm.name, {
+        type: "basic",
+        iconUrl: chrome.runtime.getURL("assets/icons/icon48.png"),
+        title: ev.title,
+        message: `Starting now (${ev.time}).`,
+      });
+    }
   }
 
   if (alarm.name === ALARM_BREAK_REMINDER) {
@@ -400,6 +491,15 @@ async function handleMessage(message: Record<string, unknown>): Promise<unknown>
   if (type === "DISMISS_SITE_TODAY") {
     const { addDismissedSite } = await import("../shared/storage");
     await addDismissedSite(message["domain"] as string);
+    return { ok: true };
+  }
+
+  if (type === "TOGGLE_PANEL") {
+    return { ok: await togglePanel() };
+  }
+
+  if (type === "OPEN_OPTIONS") {
+    await chrome.runtime.openOptionsPage();
     return { ok: true };
   }
 

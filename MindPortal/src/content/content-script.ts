@@ -1,5 +1,16 @@
 import { extractDomain, domainMatchesList } from "../shared/utils";
 import type { AppStorage } from "../shared/types";
+import { mountOverlay, togglePanel } from "./overlay";
+
+// Floating MindPortal button + in-page panel
+chrome.runtime.onMessage.addListener((msg: { type?: string }) => {
+  if (msg?.type === "MP_TOGGLE_PANEL") {
+    mountOverlay();
+    togglePanel();
+  }
+});
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mountOverlay);
+else mountOverlay();
 
 if (!document.getElementById("mp-overlay-root")) {
   main();
@@ -123,6 +134,8 @@ function showOverlay(
   `;
 
   const name = storage.settings.userName ? storage.settings.userName : "";
+  const countdownId = "mp-countdown-num";
+  const continueId = "mp-continue-btn";
 
   if (mode === "block") {
     const intentionNote = intention
@@ -149,8 +162,6 @@ function showOverlay(
       </div>
     `;
   } else {
-    const countdownId = "mp-countdown-num";
-    const continueId  = "mp-continue-btn";
 
     card.innerHTML = `
       ${ollieSvg}

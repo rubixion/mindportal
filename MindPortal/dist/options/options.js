@@ -1,6 +1,5 @@
 import "../chunks/modulepreload-polyfill-DaKOjhqt.js";
-import { t as toDateString, b as computeScore, f as formatDuration, e as extractDomain } from "../chunks/utils-DXHU2JcO.js";
-import { c as DEFAULT_SETTINGS } from "../chunks/defaults-FIaPJ9Pi.js";
+import { c as DEFAULT_SETTINGS, t as toDateString, f as computeScore, h as formatDuration, g as extractDomain } from "../chunks/utils-DbjaE0J_.js";
 let storage = null;
 let editableProductiveSites = [];
 let editableUnproductiveSites = [];
@@ -268,6 +267,7 @@ function renderGoals() {
   document.querySelector(`input[name="warning-mode"][value="${s.warningMode}"]`)?.click();
   document.getElementById("g-auto-focus") && (document.getElementById("g-auto-focus").checked = s.pomodoroAutoFocusMode);
   document.getElementById("g-grace-period") && (document.getElementById("g-grace-period").checked = s.gracePeriodEnabled);
+  document.getElementById("g-overlay-button") && (document.getElementById("g-overlay-button").checked = s.showOverlayButton ?? true);
   const updateCountdownRow = () => {
     const mode = document.querySelector('input[name="warning-mode"]:checked')?.value;
     const row = document.getElementById("countdown-seconds-row");
@@ -309,7 +309,8 @@ function setupActions() {
       pomodoroAutoFocusMode: document.getElementById("g-auto-focus")?.checked ?? false,
       breakReminderMinutes: numVal("g-break-reminder") ?? storage.settings.breakReminderMinutes,
       focusModeDefaultMinutes: numVal("g-focus-default") || storage.settings.focusModeDefaultMinutes,
-      gracePeriodEnabled: document.getElementById("g-grace-period")?.checked ?? false
+      gracePeriodEnabled: document.getElementById("g-grace-period")?.checked ?? false,
+      showOverlayButton: document.getElementById("g-overlay-button")?.checked ?? true
     };
     await chrome.storage.local.set({ settings: newSettings });
     storage.settings = newSettings;

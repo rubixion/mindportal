@@ -1,6 +1,68 @@
-import { _ as __vitePreload } from "../chunks/preload-helper-BkSzTOHT.js";
-import { D as DEFAULT_PET, a as DEFAULT_SESSION, b as DEFAULT_STREAK, c as DEFAULT_SETTINGS } from "../chunks/defaults-FIaPJ9Pi.js";
-import { t as toDateString, a as areConsecutiveDays, c as categorizeDomain, b as computeScore, e as extractDomain } from "../chunks/utils-DXHU2JcO.js";
+import { D as DEFAULT_PET, a as DEFAULT_SESSION, b as DEFAULT_STREAK, c as DEFAULT_SETTINGS, t as toDateString, d as areConsecutiveDays, e as categorizeDomain, f as computeScore, g as extractDomain } from "../chunks/utils-DbjaE0J_.js";
+const scriptRel = "modulepreload";
+const assetsURL = function(dep) {
+  return "/" + dep;
+};
+const seen = {};
+const __vitePreload = function preload(baseModule, deps, importerUrl) {
+  let promise = Promise.resolve();
+  if (deps && deps.length > 0) {
+    document.getElementsByTagName("link");
+    const cspNonceMeta = document.querySelector(
+      "meta[property=csp-nonce]"
+    );
+    const cspNonce = cspNonceMeta?.nonce || cspNonceMeta?.getAttribute("nonce");
+    promise = Promise.allSettled(
+      deps.map((dep) => {
+        dep = assetsURL(dep);
+        if (dep in seen) return;
+        seen[dep] = true;
+        const isCss = dep.endsWith(".css");
+        const cssSelector = isCss ? '[rel="stylesheet"]' : "";
+        if (document.querySelector(`link[href="${dep}"]${cssSelector}`)) {
+          return;
+        }
+        const link = document.createElement("link");
+        link.rel = isCss ? "stylesheet" : scriptRel;
+        if (!isCss) {
+          link.as = "script";
+        }
+        link.crossOrigin = "";
+        link.href = dep;
+        if (cspNonce) {
+          link.setAttribute("nonce", cspNonce);
+        }
+        document.head.appendChild(link);
+        if (isCss) {
+          return new Promise((res, rej) => {
+            link.addEventListener("load", res);
+            link.addEventListener(
+              "error",
+              () => rej(new Error(`Unable to preload CSS for ${dep}`))
+            );
+          });
+        }
+      })
+    );
+  }
+  function handlePreloadError(err) {
+    const e = new Event("vite:preloadError", {
+      cancelable: true
+    });
+    e.payload = err;
+    window.dispatchEvent(e);
+    if (!e.defaultPrevented) {
+      throw err;
+    }
+  }
+  return promise.then((res) => {
+    for (const item of res || []) {
+      if (item.status !== "rejected") continue;
+      handlePreloadError(item.reason);
+    }
+    return baseModule().catch(handlePreloadError);
+  });
+};
 async function getStorage() {
   const raw = await chrome.storage.local.get([
     "settings",
@@ -124,8 +186,75 @@ const ALARM_MIDNIGHT = "mp_midnight";
 const ALARM_BREAK_REMINDER = "mp_break_reminder";
 const ALARM_POMODORO = "mp_pomodoro";
 const ALARM_FOCUS_MODE = "mp_focus_mode";
+const ALARM_EVENT = "mp_event_";
+async function togglePanel(tabId) {
+  if (tabId === void 0) {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    tabId = tab?.id;
+  }
+  if (tabId === void 0) return false;
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: "MP_TOGGLE_PANEL" });
+    return true;
+  } catch {
+    try {
+      await chrome.scripting.executeScript({ target: { tabId }, files: ["content/content-script.js"] });
+      await chrome.tabs.sendMessage(tabId, { type: "MP_TOGGLE_PANEL" });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+async function syncEventAlarms() {
+  const { events } = await chrome.storage.local.get("events");
+  const existing = (await chrome.alarms.getAll()).filter((a) => a.name.startsWith(ALARM_EVENT));
+  await Promise.all(existing.map((a) => chrome.alarms.clear(a.name)));
+  for (const e of events ?? []) {
+    if (!e.remind || !e.time) continue;
+    const [y, m, d] = e.date.split("-").map(Number);
+    const [h, min] = e.time.split(":").map(Number);
+    const when = new Date(y, m - 1, d, h, min).getTime();
+    if (when > Date.now()) chrome.alarms.create(ALARM_EVENT + e.id, { when });
+  }
+}
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes["events"]) void syncEventAlarms();
+});
+chrome.commands.onCommand.addListener((command, tab) => {
+  if (command === "toggle-panel") void togglePanel(tab?.id);
+});
+const newId = () => crypto.randomUUID();
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId === "mp_save_selection" && info.selectionText) {
+    const { notesV2 } = await chrome.storage.local.get("notesV2");
+    const note = {
+      id: newId(),
+      title: `Clip: ${tab?.title ?? "web page"}`.slice(0, 120),
+      body: info.selectionText,
+      pinned: false,
+      updated: Date.now(),
+      ...tab?.url ? { url: tab.url } : {}
+    };
+    await chrome.storage.local.set({ notesV2: [note, ...notesV2 ?? []] });
+  } else if (info.menuItemId === "mp_save_link" || info.menuItemId === "mp_save_page") {
+    const url = info.menuItemId === "mp_save_link" ? info.linkUrl : info.pageUrl ?? tab?.url;
+    if (!url) return;
+    const title = info.menuItemId === "mp_save_link" ? info.selectionText ?? url : tab?.title ?? url;
+    const { saved } = await chrome.storage.local.get("saved");
+    const list = saved ?? [];
+    if (!list.some((p) => p.url === url)) {
+      await chrome.storage.local.set({ saved: [{ id: newId(), title, url, added: Date.now() }, ...list] });
+    }
+  }
+});
 chrome.runtime.onInstalled.addListener(async (_details) => {
   await setupAlarms();
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({ id: "mp_save_selection", title: "Save selection to MindPortal notes", contexts: ["selection"] });
+    chrome.contextMenus.create({ id: "mp_save_link", title: "Save link to MindPortal", contexts: ["link"] });
+    chrome.contextMenus.create({ id: "mp_save_page", title: "Save page to MindPortal", contexts: ["page"] });
+  });
 });
 chrome.runtime.onStartup.addListener(async () => {
   await setupAlarms();
@@ -133,6 +262,7 @@ chrome.runtime.onStartup.addListener(async () => {
 });
 async function setupAlarms() {
   await chrome.alarms.clearAll();
+  await syncEventAlarms();
   chrome.alarms.create(ALARM_TICK, { periodInMinutes: 10 / 60 });
   scheduleMidnightAlarm();
 }
@@ -269,6 +399,18 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   }
   if (alarm.name === ALARM_FOCUS_MODE) {
     await deactivateFocusMode();
+  }
+  if (alarm.name.startsWith(ALARM_EVENT)) {
+    const { events } = await chrome.storage.local.get("events");
+    const ev = (events ?? []).find((e) => ALARM_EVENT + e.id === alarm.name);
+    if (ev) {
+      chrome.notifications.create(alarm.name, {
+        type: "basic",
+        iconUrl: chrome.runtime.getURL("assets/icons/icon48.png"),
+        title: ev.title,
+        message: `Starting now (${ev.time}).`
+      });
+    }
   }
   if (alarm.name === ALARM_BREAK_REMINDER) ;
 });
@@ -420,6 +562,13 @@ async function handleMessage(message) {
       return { addDismissedSite: addDismissedSite3 };
     }, true ? void 0 : void 0);
     await addDismissedSite2(message["domain"]);
+    return { ok: true };
+  }
+  if (type === "TOGGLE_PANEL") {
+    return { ok: await togglePanel() };
+  }
+  if (type === "OPEN_OPTIONS") {
+    await chrome.runtime.openOptionsPage();
     return { ok: true };
   }
   if (type === "GET_STORAGE") {

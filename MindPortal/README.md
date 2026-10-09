@@ -10,6 +10,8 @@ A Chrome Extension (Manifest V3) that helps you build discipline through time tr
 
 | Feature | Description |
 |---|---|
+| 🦉 **In-page panel** | Floating Ollie button (or **Alt+M**, or the popup) opens a panel on any page: Today, Notes, Lists, Calendar, Habits, Saved pages, Sites. Everything saves to `chrome.storage.local`. |
+| 📝 **Quick capture** | Right-click → save a selection to Notes, or a link/page to Saved. Calendar events with a time get a notification reminder. |
 | ⏱️ **Time Tracking** | Tracks seconds on productive vs. unproductive vs. neutral sites. Resets at midnight. |
 | 🚧 **Site Warnings** | Full-page overlay when entering unproductive sites. Three modes: Countdown (5s pause), Warn Only, Hard Block. |
 | 🔥 **Streaks** | Daily streak that increments when you hit your productive time goal and stay under your unproductive cap. |

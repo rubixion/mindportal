@@ -324,6 +324,7 @@ function renderGoals() {
   (document.querySelector(`input[name="warning-mode"][value="${s.warningMode}"]`) as HTMLInputElement | null)?.click();
   (document.getElementById("g-auto-focus") as HTMLInputElement | null && ((document.getElementById("g-auto-focus") as HTMLInputElement).checked = s.pomodoroAutoFocusMode));
   (document.getElementById("g-grace-period") as HTMLInputElement | null && ((document.getElementById("g-grace-period") as HTMLInputElement).checked = s.gracePeriodEnabled));
+  (document.getElementById("g-overlay-button") as HTMLInputElement | null && ((document.getElementById("g-overlay-button") as HTMLInputElement).checked = s.showOverlayButton ?? true));
 
   // Show/hide countdown seconds row
   const updateCountdownRow = () => {
@@ -378,6 +379,7 @@ function setupActions() {
       breakReminderMinutes: numVal("g-break-reminder") ?? storage.settings.breakReminderMinutes,
       focusModeDefaultMinutes: numVal("g-focus-default") || storage.settings.focusModeDefaultMinutes,
       gracePeriodEnabled: (document.getElementById("g-grace-period") as HTMLInputElement | null)?.checked ?? false,
+      showOverlayButton: (document.getElementById("g-overlay-button") as HTMLInputElement | null)?.checked ?? true,
     };
     await chrome.storage.local.set({ settings: newSettings });
     storage.settings = newSettings;
