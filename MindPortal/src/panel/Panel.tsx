@@ -4,7 +4,7 @@ import { Bookmark, CalendarDays, Globe, ListChecks, NotebookPen, Repeat, Setting
 import { ExpandableTabs, type ExpandableTab } from "@/components/ui/expandable-tabs";
 import { Button } from "@/components/ui/button";
 import { Ollie } from "@/components/ollie";
-import { send, useStored } from "@/lib/utils";
+import { useStored } from "@/lib/utils";
 import { Today } from "./tabs/Today";
 import { Notes } from "./tabs/Notes";
 import { Lists } from "./tabs/Lists";
@@ -12,6 +12,7 @@ import { Agenda } from "./tabs/Agenda";
 import { Habits } from "./tabs/Habits";
 import { Saved } from "./tabs/Saved";
 import { Sites } from "./tabs/Sites";
+import { Settings } from "./tabs/Settings";
 
 const TABS: ExpandableTab[] = [
   { id: "today", label: "Today", icon: <Sun className="size-4" /> },
@@ -31,6 +32,7 @@ const VIEWS: Record<string, ComponentType> = {
   habits: Habits,
   saved: Saved,
   sites: Sites,
+  settings: Settings,
 };
 
 export function Panel({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -60,8 +62,9 @@ export function Panel({ open, onClose }: { open: boolean; onClose: () => void })
             <Ollie size={26} />
             <span className="text-[15px] font-bold tracking-tight">MindPortal</span>
             <span className="flex-1" />
-            <Button variant="ghost" size="icon" aria-label="Settings and analytics" title="Settings and analytics" onClick={() => send({ type: "OPEN_OPTIONS" })}>
-              <Gear className="size-4" />
+            <Button variant="ghost" size="icon" aria-label="Settings" title="Settings" aria-pressed={tab === "settings"}
+              onClick={() => setTab(tab === "settings" ? "today" : "settings")}>
+              <Gear className={tab === "settings" ? "size-4 text-(--ollie-cyan)" : "size-4"} />
             </Button>
             <Button variant="ghost" size="icon" aria-label="Close panel (Esc)" title="Close (Esc)" onClick={onClose}>
               <X className="size-4" />

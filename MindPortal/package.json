@@ -1,7 +1,7 @@
 {
   "name": "focusforge",
   "version": "1.0.0",
-  "description": "FocusForge \u00e2\u20ac\u201d Forge your focus, one day at a time.",
+  "description": "FocusForge â€” Forge your focus, one day at a time.",
   "scripts": {
     "prebuild": "node scripts/generate-icons.js",
     "dev": "node scripts/generate-icons.js && vite build && vite build -c vite.content.config.mts --watch",
@@ -29,6 +29,7 @@
     "vitest": "^1.5.0"
   },
   "dependencies": {
+    "@radix-ui/react-switch": "^1.3.8",
     "chart.js": "^4.5.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

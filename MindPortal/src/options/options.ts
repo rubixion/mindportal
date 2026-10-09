@@ -415,7 +415,7 @@ function setupActions() {
     );
     if (!confirmed) return;
     await chrome.storage.local.clear();
-    chrome.tabs.create({ url: chrome.runtime.getURL("onboarding/index.html") });
+    location.reload();
     window.close();
   });
 }

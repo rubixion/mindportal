@@ -18,7 +18,6 @@ if (!document.getElementById("mp-overlay-root")) {
 
 async function main() {
   const storage = await getStorage();
-  if (!storage.settings.onboardingComplete) return;
 
   const domain = extractDomain(window.location.href);
   if (!domain) return;

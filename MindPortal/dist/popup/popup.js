@@ -18046,25 +18046,18 @@ function Popup() {
   const [error, setError] = reactExports.useState("");
   const record = dailyData[toDateString()];
   const score = record?.score ?? 0;
-  const openPanel = async () => {
+  const openPanel = async (tab) => {
+    if (tab) await chrome.storage.local.set({ panelTab: tab });
     const r2 = await send({ type: "TOGGLE_PANEL" });
     if (r2?.ok) window.close();
     else setError("The panel can't open on this page (Chrome pages and the Web Store are off-limits). Try it on a regular website.");
   };
-  if (!settings.onboardingComplete) {
-    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col items-center gap-3 p-6 text-center", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(Ollie, { size: 64 }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-lg font-bold", children: "Hey, I'm Ollie." }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-white/60", children: "Let's set up your focus goals. It takes 30 seconds." }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(Button, { size: "cta", className: "w-full", onClick: () => chrome.tabs.create({ url: chrome.runtime.getURL("src/onboarding/index.html") }), children: "Get started" })
-    ] });
-  }
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-3 p-4", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(Ollie, { size: 28 }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[15px] font-bold tracking-tight", children: "MindPortal" }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "flex-1" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(Button, { variant: "ghost", size: "icon", "aria-label": "Settings and analytics", onClick: () => chrome.runtime.openOptionsPage(), children: /* @__PURE__ */ jsxRuntimeExports.jsx(Settings, { className: "size-4" }) })
+      /* @__PURE__ */ jsxRuntimeExports.jsx(Button, { variant: "ghost", size: "icon", "aria-label": "Settings", onClick: () => openPanel("settings"), children: /* @__PURE__ */ jsxRuntimeExports.jsx(Settings, { className: "size-4" }) })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mp-card flex items-center gap-4 p-3", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -18102,7 +18095,7 @@ function Popup() {
       settings.focusModeDefaultMinutes,
       " min"
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs(Button, { size: "cta", className: "w-full", onClick: openPanel, children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(Button, { size: "cta", className: "w-full", onClick: () => openPanel(), children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(PanelRightOpen, { className: "size-4" }),
       " Open MindPortal panel"
     ] }),

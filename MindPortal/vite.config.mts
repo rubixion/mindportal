@@ -31,7 +31,6 @@ export default defineConfig({
         "service-worker": resolve(import.meta.dirname, "src/background/service-worker.ts"),
         popup: resolve(import.meta.dirname, "src/popup/index.html"),
         options: resolve(import.meta.dirname, "src/options/index.html"),
-        onboarding: resolve(import.meta.dirname, "src/onboarding/index.html"),
       },
       output: {
         entryFileNames: (chunk) => {

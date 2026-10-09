@@ -22,22 +22,12 @@ function Popup() {
   const record = dailyData[toDateString()];
   const score = record?.score ?? 0;
 
-  const openPanel = async () => {
+  const openPanel = async (tab?: string) => {
+    if (tab) await chrome.storage.local.set({ panelTab: tab });
     const r = await send<{ ok: boolean }>({ type: "TOGGLE_PANEL" });
     if (r?.ok) window.close();
     else setError("The panel can't open on this page (Chrome pages and the Web Store are off-limits). Try it on a regular website.");
   };
-
-  if (!settings.onboardingComplete) {
-    return (
-      <div className="flex flex-col items-center gap-3 p-6 text-center">
-        <Ollie size={64} />
-        <h1 className="text-lg font-bold">Hey, I'm Ollie.</h1>
-        <p className="text-sm text-white/60">Let's set up your focus goals. It takes 30 seconds.</p>
-        <Button size="cta" className="w-full" onClick={() => chrome.tabs.create({ url: chrome.runtime.getURL("src/onboarding/index.html") })}>Get started</Button>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-3 p-4">
@@ -45,7 +35,7 @@ function Popup() {
         <Ollie size={28} />
         <span className="text-[15px] font-bold tracking-tight">MindPortal</span>
         <span className="flex-1" />
-        <Button variant="ghost" size="icon" aria-label="Settings and analytics" onClick={() => chrome.runtime.openOptionsPage()}><Gear className="size-4" /></Button>
+        <Button variant="ghost" size="icon" aria-label="Settings" onClick={() => openPanel("settings")}><Gear className="size-4" /></Button>
       </div>
 
       <div className="mp-card flex items-center gap-4 p-3">
@@ -68,7 +58,7 @@ function Popup() {
         </Button>
       )}
 
-      <Button size="cta" className="w-full" onClick={openPanel}>
+      <Button size="cta" className="w-full" onClick={() => openPanel()}>
         <PanelRightOpen className="size-4" /> Open MindPortal panel
       </Button>
       {error && <p className="text-xs leading-snug text-orange-300" role="alert">{error}</p>}
