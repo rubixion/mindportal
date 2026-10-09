@@ -1,6 +1,9 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { localDate } from "../../shared/events";
+
+export { localDate, parseLocalDate } from "../../shared/events";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -8,11 +11,6 @@ export function cn(...inputs: ClassValue[]) {
 
 // randomUUID is missing on plain-http pages, where the overlay also runs
 export const uid = () => crypto.randomUUID?.() ?? Date.now().toString(36) + Math.random().toString(36).slice(2);
-
-/** Local-time YYYY-MM-DD (calendar + habits care about the user's day, not UTC). */
-export function localDate(d: Date = new Date()): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 /** Consecutive days done, counting back from today (or yesterday if today isn't ticked yet). */
 export function habitStreak(days: string[]): number {
@@ -25,11 +23,6 @@ export function habitStreak(days: string[]): number {
     d.setDate(d.getDate() - 1);
   }
   return n;
-}
-
-export function parseLocalDate(s: string): Date {
-  const [y, m, d] = s.split("-").map(Number);
-  return new Date(y!, m! - 1, d!);
 }
 
 export function send<T = unknown>(msg: Record<string, unknown>): Promise<T> {

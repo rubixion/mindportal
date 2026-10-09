@@ -114,12 +114,19 @@ export interface TodoList {
   items: ListItem[];
 }
 
+export type Repeat = "none" | "daily" | "weekdays" | "weekly" | "monthly" | "yearly";
+
 export interface CalEvent {
   id: string;
   title: string;
-  date: string; // YYYY-MM-DD (local)
-  time: string; // HH:MM or ""
+  date: string; // YYYY-MM-DD (local); first occurrence for repeating events
+  time: string; // HH:MM or "" (all day)
+  endTime?: string; // HH:MM or ""
   remind: boolean;
+  remindBefore?: number; // minutes before start
+  repeat?: Repeat;
+  location?: string;
+  notes?: string;
 }
 
 export interface Habit {

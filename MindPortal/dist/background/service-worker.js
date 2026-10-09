@@ -182,6 +182,68 @@ const storage = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.definePrope
   saveSettings,
   saveStreak
 }, Symbol.toStringTag, { value: "Module" }));
+function localDate(d = /* @__PURE__ */ new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function parseLocalDate(s) {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+function addDays(key, n) {
+  const d = parseLocalDate(key);
+  d.setDate(d.getDate() + n);
+  return localDate(d);
+}
+function at(key, time) {
+  const d = parseLocalDate(key);
+  const [h, m] = time.split(":").map(Number);
+  d.setHours(h, m, 0, 0);
+  return d.getTime();
+}
+function occursOn(e, key) {
+  if (key < e.date) return false;
+  const repeat = e.repeat ?? "none";
+  if (repeat === "none") return key === e.date;
+  if (repeat === "daily") return true;
+  const d = parseLocalDate(key);
+  const start = parseLocalDate(e.date);
+  switch (repeat) {
+    case "weekdays":
+      return d.getDay() >= 1 && d.getDay() <= 5;
+    case "weekly":
+      return d.getDay() === start.getDay();
+    case "monthly":
+      return d.getDate() === start.getDate();
+    case "yearly":
+      return d.getMonth() === start.getMonth() && d.getDate() === start.getDate();
+  }
+}
+function nextOccurrence(e, fromKey) {
+  let key = fromKey < e.date ? e.date : fromKey;
+  if ((e.repeat ?? "none") === "none") return key === e.date ? key : null;
+  for (let i = 0; i < 1500; i++, key = addDays(key, 1)) if (occursOn(e, key)) return key;
+  return null;
+}
+function nextReminder(e, now) {
+  if (!e.remind || !e.time) return null;
+  const before = Math.max(0, e.remindBefore ?? 0) * 6e4;
+  let key = nextOccurrence(e, localDate(new Date(now - 864e5)));
+  for (let i = 0; i < 5 && key; i++) {
+    const when = at(key, e.time) - before;
+    if (when > now) return when;
+    key = nextOccurrence(e, addDays(key, 1));
+  }
+  return null;
+}
+function timeLabel(time) {
+  if (!time) return "All day";
+  const [h, m] = time.split(":").map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+}
+function timeRange(e) {
+  if (!e.time) return "All day";
+  return e.endTime ? `${timeLabel(e.time)} – ${timeLabel(e.endTime)}` : timeLabel(e.time);
+}
 const ALARM_TICK = "mp_tick";
 const ALARM_MIDNIGHT = "mp_midnight";
 const ALARM_BREAK_REMINDER = "mp_break_reminder";
@@ -212,11 +274,8 @@ async function syncEventAlarms() {
   const existing = (await chrome.alarms.getAll()).filter((a) => a.name.startsWith(ALARM_EVENT));
   await Promise.all(existing.map((a) => chrome.alarms.clear(a.name)));
   for (const e of events ?? []) {
-    if (!e.remind || !e.time) continue;
-    const [y, m, d] = e.date.split("-").map(Number);
-    const [h, min] = e.time.split(":").map(Number);
-    const when = new Date(y, m - 1, d, h, min).getTime();
-    if (when > Date.now()) chrome.alarms.create(ALARM_EVENT + e.id, { when });
+    const when = nextReminder(e, Date.now());
+    if (when) chrome.alarms.create(ALARM_EVENT + e.id, { when });
   }
 }
 chrome.storage.onChanged.addListener((changes, area) => {
@@ -405,13 +464,16 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     const { events } = await chrome.storage.local.get("events");
     const ev = (events ?? []).find((e) => ALARM_EVENT + e.id === alarm.name);
     if (ev) {
-      chrome.notifications.create(alarm.name, {
+      const before = ev.remindBefore ?? 0;
+      const lead = before === 0 ? "Starting now" : before >= 1440 ? "Tomorrow" : before >= 60 ? `In ${before / 60} hour${before > 60 ? "s" : ""}` : `In ${before} minutes`;
+      chrome.notifications.create(`${alarm.name}_${Date.now()}`, {
         type: "basic",
         iconUrl: chrome.runtime.getURL("assets/icons/icon48.png"),
         title: ev.title,
-        message: `Starting now (${ev.time}).`
+        message: `${lead} · ${timeRange(ev)}${ev.location ? ` · ${ev.location}` : ""}`
       });
     }
+    await syncEventAlarms();
   }
   if (alarm.name === ALARM_BREAK_REMINDER) ;
 });

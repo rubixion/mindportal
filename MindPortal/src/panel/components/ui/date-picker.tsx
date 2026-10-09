@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { CalendarDays, Clock } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { timeRange } from "../../../shared/events";
 
 export interface DatePreset {
   label: string;
@@ -37,30 +38,43 @@ const DEFAULT_PRESETS: DatePreset[] = [
 const TIME_FIELD_CLASS =
   "cursor-pointer rounded-lg border border-white/10 bg-black/40 px-1.5 py-1 text-xs text-white outline-none focus-visible:ring-2 focus-visible:ring-(--ollie-cyan)/60 [color-scheme:dark]";
 
-/** "HH:MM" or "" (all day). */
-function TimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [h, m] = value ? value.split(":").map(Number) : [9, 0];
+function HourMinute({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const [h, m] = value.split(":").map(Number);
   const set = (hh: number, mm: number) => onChange(`${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`);
   return (
-    <div className="flex items-center gap-1.5 border-t border-white/10 pt-2.5">
-      <Clock className="size-3.5 shrink-0 text-white/40" />
-      <label className="flex cursor-pointer items-center gap-1.5 text-xs text-white/70">
-        <input type="checkbox" className="accent-(--ollie-cyan)" checked={!value} onChange={(e) => (e.target.checked ? onChange("") : set(h!, m!))} />
-        All day
-      </label>
-      {value && (
-        <div className="ml-auto flex items-center gap-1 text-xs">
-          <select aria-label="Hour" value={h} onChange={(e) => set(Number(e.target.value), m!)} className={TIME_FIELD_CLASS}>
-            {Array.from({ length: 24 }, (_, i) => (
-              <option key={i} value={i}>{`${i % 12 || 12} ${i < 12 ? "AM" : "PM"}`}</option>
-            ))}
-          </select>
-          <span className="text-white/40">:</span>
-          <select aria-label="Minute" value={m} onChange={(e) => set(h!, Number(e.target.value))} className={TIME_FIELD_CLASS}>
-            {Array.from({ length: 12 }, (_, i) => i * 5).concat(m! % 5 ? [m!] : []).sort((a, b) => a - b).map((i) => (
-              <option key={i} value={i}>{String(i).padStart(2, "0")}</option>
-            ))}
-          </select>
+    <div className="flex items-center gap-1 text-xs">
+      <span className="w-10 text-white/45">{label}</span>
+      <select aria-label={`${label} hour`} value={h} onChange={(e) => set(Number(e.target.value), m!)} className={TIME_FIELD_CLASS}>
+        {Array.from({ length: 24 }, (_, i) => (
+          <option key={i} value={i}>{`${i % 12 || 12} ${i < 12 ? "AM" : "PM"}`}</option>
+        ))}
+      </select>
+      <span className="text-white/40">:</span>
+      <select aria-label={`${label} minute`} value={m} onChange={(e) => set(h!, Number(e.target.value))} className={TIME_FIELD_CLASS}>
+        {Array.from({ length: 12 }, (_, i) => i * 5).concat(m! % 5 ? [m!] : []).sort((a, b) => a - b).map((i) => (
+          <option key={i} value={i}>{String(i).padStart(2, "0")}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+/** Start/end "HH:MM", or "" for all day. */
+function TimePicker({ start, end, onChange }: { start: string; end: string; onChange: (start: string, end: string) => void }) {
+  return (
+    <div className="space-y-2 border-t border-white/10 pt-2.5">
+      <div className="flex items-center gap-1.5">
+        <Clock className="size-3.5 shrink-0 text-white/40" />
+        <label className="flex cursor-pointer items-center gap-1.5 text-xs text-white/70">
+          <input type="checkbox" className="accent-(--ollie-cyan)" checked={!start}
+            onChange={(e) => (e.target.checked ? onChange("", "") : onChange("09:00", "10:00"))} />
+          All day
+        </label>
+      </div>
+      {start && (
+        <div className="flex flex-wrap gap-x-4 gap-y-2 pl-5">
+          <HourMinute label="Starts" value={start} onChange={(v) => onChange(v, end)} />
+          <HourMinute label="Ends" value={end || start} onChange={(v) => onChange(start, v)} />
         </div>
       )}
     </div>
@@ -71,17 +85,19 @@ export function DatePicker({
   value,
   onChange,
   time,
+  endTime = "",
   onTimeChange,
-  eventDates,
+  hasEvent,
   presets = DEFAULT_PRESETS,
   className,
 }: {
   value: Date;
   onChange: (d: Date) => void;
-  /** "HH:MM" or "" for all day. Omit both time props to hide the time row. */
+  /** "HH:MM" or "" for all day. Omit the time props to hide the time row. */
   time?: string;
-  onTimeChange?: (t: string) => void;
-  eventDates?: Set<string>;
+  endTime?: string;
+  onTimeChange?: (start: string, end: string) => void;
+  hasEvent?: (key: string) => boolean;
   presets?: DatePreset[];
   className?: string;
 }) {
@@ -115,7 +131,7 @@ export function DatePicker({
     };
   }, [open]);
 
-  const label = formatDate(value) + (hasTime && time ? ` · ${new Date(2000, 0, 1, ...(time.split(":").map(Number) as [number, number])).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : hasTime ? " · All day" : "");
+  const label = formatDate(value) + (hasTime ? ` · ${timeRange({ time: time!, endTime })}` : "");
 
   return (
     <div ref={root} className={cn("relative", className)}>
@@ -144,36 +160,34 @@ export function DatePicker({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: -4 }}
             transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
-            className="absolute left-0 top-full z-50 mt-1.5 w-[min(364px,calc(100vw-48px))] origin-top-left rounded-2xl border border-white/10 bg-[#121218] p-3 shadow-[0_18px_48px_-12px_rgba(0,0,0,0.7)]"
+            className="absolute inset-x-0 top-full z-50 mt-1.5 min-w-[272px] origin-top rounded-2xl border border-white/10 bg-[#121218] p-3 shadow-[0_18px_48px_-12px_rgba(0,0,0,0.7)]"
           >
-            <div className="flex gap-3">
-              <div className="flex w-[96px] shrink-0 flex-col gap-0.5 border-r border-white/10 pr-2">
-                {presets.map((p) => (
-                  <button
-                    key={p.label}
-                    type="button"
-                    onClick={() => {
-                      onChange(p.getValue());
-                      if (!hasTime) setOpen(false);
-                    }}
-                    className="cursor-pointer rounded-[10px] px-2 py-1.5 text-left text-xs font-medium text-white/55 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:bg-white/[0.06] focus-visible:outline-none"
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-              <div className="min-w-0 flex-1 space-y-2.5">
-                <Calendar
-                  selected={value}
-                  onSelect={(d) => {
-                    onChange(d);
+            <div className="mb-2.5 flex flex-wrap gap-1.5">
+              {presets.map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => {
+                    onChange(p.getValue());
                     if (!hasTime) setOpen(false);
                   }}
-                  eventDates={eventDates ?? new Set()}
-                  className="border-0 bg-transparent p-0"
-                />
-                {hasTime && <TimePicker value={time!} onChange={onTimeChange!} />}
-              </div>
+                  className="cursor-pointer rounded-full border border-white/10 px-2.5 py-1 text-[11px] font-medium text-white/60 transition-colors hover:border-white/25 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--ollie-cyan)/60"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <div className="space-y-2.5">
+              <Calendar
+                selected={value}
+                onSelect={(d) => {
+                  onChange(d);
+                  if (!hasTime) setOpen(false);
+                }}
+                hasEvent={hasEvent}
+                className="border-0 bg-transparent p-0"
+              />
+              {hasTime && <TimePicker start={time!} end={endTime} onChange={onTimeChange!} />}
             </div>
             {hasTime && (
               <button

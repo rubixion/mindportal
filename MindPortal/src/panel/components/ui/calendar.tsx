@@ -38,13 +38,13 @@ const navBtn =
 export function Calendar({
   selected,
   onSelect,
-  eventDates,
+  hasEvent,
   className,
 }: {
   selected: Date;
   onSelect: (d: Date) => void;
-  /** Dates (YYYY-MM-DD local) with an event dot. */
-  eventDates: Set<string>;
+  /** Whether a date (YYYY-MM-DD local) gets an event dot. */
+  hasEvent?: (key: string) => boolean;
   className?: string;
 }) {
   const reduced = useReducedMotion();
@@ -99,8 +99,10 @@ export function Calendar({
         </button>
       </div>
 
-      <div className="relative overflow-hidden">
-        <AnimatePresence mode="popLayout" initial={false} custom={direction}>
+      {/* old and new month share one grid cell while they cross-slide. (popLayout would inject its styles into
+          document.head, which can't reach the overlay's shadow root, so the old month left a gap.) */}
+      <div className="relative grid overflow-hidden [&>*]:[grid-area:1/1]">
+        <AnimatePresence initial={false} custom={direction}>
           {view === "days" ? (
             <motion.div
               key={`${month.getFullYear()}-${month.getMonth()}`}
@@ -136,12 +138,12 @@ export function Calendar({
                   const outside = !isSameMonth(date, month);
                   const isSel = isSameDay(date, selected);
                   const isToday = isSameDay(date, today);
-                  const hasEvent = eventDates.has(keyOf(date));
+                  const dot = hasEvent?.(keyOf(date)) ?? false;
                   return (
                     <div key={date.toISOString()} role="gridcell" aria-selected={isSel || undefined} className="relative flex h-8 items-center justify-center">
                       <button
                         type="button"
-                        aria-label={date.toDateString() + (hasEvent ? ", has events" : "")}
+                        aria-label={date.toDateString() + (dot ? ", has events" : "")}
                         data-date={date.toISOString()}
                         data-date-key={date.toDateString()}
                         tabIndex={isSameDay(date, focusable) ? 0 : -1}
@@ -155,7 +157,7 @@ export function Calendar({
                         )}
                       >
                         {date.getDate()}
-                        {hasEvent && <span className={cn("absolute bottom-0.5 size-1 rounded-full", isSel ? "bg-black/70" : "bg-(--ollie-cyan)")} />}
+                        {dot && <span className={cn("absolute bottom-0.5 size-1 rounded-full", isSel ? "bg-black/70" : "bg-(--ollie-cyan)")} />}
                       </button>
                     </div>
                   );

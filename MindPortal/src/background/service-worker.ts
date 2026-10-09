@@ -18,6 +18,7 @@ import {
   areConsecutiveDays,
   focusXP,
 } from "../shared/utils";
+import { nextReminder, timeRange } from "../shared/events";
 import type { ActiveSession, CalEvent, DayRecord, Note, SavedPage, StreakData } from "../shared/types";
 
 // Alarm names
@@ -56,12 +57,10 @@ async function syncEventAlarms() {
   const { events } = await chrome.storage.local.get("events");
   const existing = (await chrome.alarms.getAll()).filter((a) => a.name.startsWith(ALARM_EVENT));
   await Promise.all(existing.map((a) => chrome.alarms.clear(a.name)));
+  // one alarm per event: its next reminder (repeating events reschedule after each one fires)
   for (const e of (events as CalEvent[] | undefined) ?? []) {
-    if (!e.remind || !e.time) continue;
-    const [y, m, d] = e.date.split("-").map(Number);
-    const [h, min] = e.time.split(":").map(Number);
-    const when = new Date(y!, m! - 1, d!, h!, min!).getTime();
-    if (when > Date.now()) chrome.alarms.create(ALARM_EVENT + e.id, { when });
+    const when = nextReminder(e, Date.now());
+    if (when) chrome.alarms.create(ALARM_EVENT + e.id, { when });
   }
 }
 
@@ -301,13 +300,16 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     const { events } = await chrome.storage.local.get("events");
     const ev = ((events as CalEvent[] | undefined) ?? []).find((e) => ALARM_EVENT + e.id === alarm.name);
     if (ev) {
-      chrome.notifications.create(alarm.name, {
+      const before = ev.remindBefore ?? 0;
+      const lead = before === 0 ? "Starting now" : before >= 1440 ? "Tomorrow" : before >= 60 ? `In ${before / 60} hour${before > 60 ? "s" : ""}` : `In ${before} minutes`;
+      chrome.notifications.create(`${alarm.name}_${Date.now()}`, {
         type: "basic",
         iconUrl: chrome.runtime.getURL("assets/icons/icon48.png"),
         title: ev.title,
-        message: `Starting now (${ev.time}).`,
+        message: `${lead} · ${timeRange(ev)}${ev.location ? ` · ${ev.location}` : ""}`,
       });
     }
+    await syncEventAlarms(); // schedule the next repeat
   }
 
   if (alarm.name === ALARM_BREAK_REMINDER) {

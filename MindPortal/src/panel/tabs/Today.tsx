@@ -7,6 +7,7 @@ import { Ollie } from "@/components/ollie";
 import { localDate, send, useNow, useStored } from "@/lib/utils";
 import { DEFAULT_SESSION, DEFAULT_SETTINGS, DEFAULT_STREAK, DEFAULT_PET } from "../../shared/defaults";
 import { formatCountdown, formatDuration, scoreColor, toDateString } from "../../shared/utils";
+import { occursOn, timeLabel } from "../../shared/events";
 import type { ActiveSession, CalEvent, DayRecord, OllieMood, Settings, StreakData, PetState, TodoList } from "../../shared/types";
 
 const MESSAGES: Record<OllieMood, string> = {
@@ -68,7 +69,7 @@ export function Today() {
   };
 
   const todayKey = localDate();
-  const todaysEvents = events.filter((e) => e.date === todayKey).sort((a, b) => a.time.localeCompare(b.time));
+  const todaysEvents = events.filter((e) => occursOn(e, todayKey)).sort((a, b) => a.time.localeCompare(b.time));
   const openTasks = lists.reduce((n, l) => n + l.items.filter((i) => !i.done).length, 0);
 
   const focusLeft = ss.focusModeEndTime ? Math.max(0, (ss.focusModeEndTime - now) / 1000) : 0;
@@ -171,7 +172,7 @@ export function Today() {
         <span className="mp-label">Today at a glance</span>
         <div className="flex items-center gap-2 text-[13px] text-white/75">
           <CalendarDays className="size-4 text-(--ollie-cyan)" />
-          {todaysEvents.length ? todaysEvents.map((e) => `${e.time ? e.time + " " : ""}${e.title}`).join(" · ") : "Nothing on the calendar"}
+          {todaysEvents.length ? todaysEvents.map((e) => `${e.time ? timeLabel(e.time) + " " : ""}${e.title}`).join(" · ") : "Nothing on the calendar"}
         </div>
         <div className="flex items-center gap-2 text-[13px] text-white/75">
           <ListChecks className="size-4 text-(--ollie-cyan)" />
