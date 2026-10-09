@@ -2,8 +2,8 @@ import type { AppStorage, Settings } from "../shared/types";
 import { extractDomain, formatDuration, toDateString, computeScore } from "../shared/utils";
 import { DEFAULT_SETTINGS } from "../shared/defaults";
 
-// Chart.js is loaded via CDN script tag in HTML
-declare const Chart: typeof import("chart.js").Chart;
+// bundled locally: extension pages may not load scripts from a CDN (MV3 CSP)
+import Chart from "chart.js/auto";
 
 let storage: AppStorage | null = null;
 let editableProductiveSites: string[] = [];

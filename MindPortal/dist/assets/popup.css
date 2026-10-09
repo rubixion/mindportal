@@ -525,8 +525,16 @@
     inset: 0;
   }
 
+  .inset-2 {
+    inset: calc(var(--spacing) * 2);
+  }
+
   .inset-y-0 {
     inset-block: 0;
+  }
+
+  .-top-1 {
+    top: calc(var(--spacing) * -1);
   }
 
   .top-1 {
@@ -563,6 +571,10 @@
 
   .bottom-4 {
     bottom: calc(var(--spacing) * 4);
+  }
+
+  .-left-1 {
+    left: calc(var(--spacing) * -1);
   }
 
   .left-0 {
@@ -645,6 +657,10 @@
 
   .mb-2 {
     margin-bottom: calc(var(--spacing) * 2);
+  }
+
+  .-ml-2 {
+    margin-left: calc(var(--spacing) * -2);
   }
 
   .ml-auto {
@@ -844,6 +860,10 @@
     height: 1.5px;
   }
 
+  .h-\[min\(780px\,calc\(100vh-24px\)\)\] {
+    height: min(780px, 100vh - 24px);
+  }
+
   .h-full {
     height: 100%;
   }
@@ -942,6 +962,10 @@
     transform: var(--tw-rotate-x, ) var(--tw-rotate-y, ) var(--tw-rotate-z, ) var(--tw-skew-x, ) var(--tw-skew-y, );
   }
 
+  .cursor-grab {
+    cursor: grab;
+  }
+
   .cursor-pointer {
     cursor: pointer;
   }
@@ -949,6 +973,10 @@
   .touch-pinch-zoom {
     --tw-pinch-zoom: pinch-zoom;
     touch-action: var(--tw-pan-x, ) var(--tw-pan-y, ) var(--tw-pinch-zoom, );
+  }
+
+  .touch-none {
+    touch-action: none;
   }
 
   .resize {
@@ -1370,6 +1398,10 @@
     .bg-\(--ollie-cyan\)\/15 {
       background-color: color-mix(in oklab, var(--ollie-cyan) 15%, transparent);
     }
+  }
+
+  .bg-\[\#0b0b0e\] {
+    background-color: #0b0b0e;
   }
 
   .bg-\[\#15172b\] {
@@ -2241,6 +2273,13 @@
   }
 
   @media (hover: hover) {
+    .hover\:scale-105:hover {
+      --tw-scale-x: 105%;
+      --tw-scale-y: 105%;
+      --tw-scale-z: 105%;
+      scale: var(--tw-scale-x) var(--tw-scale-y);
+    }
+
     .hover\:border-white\/20:hover {
       border-color: #fff3;
     }
@@ -2406,8 +2445,19 @@
     }
   }
 
+  .active\:scale-95:active {
+    --tw-scale-x: 95%;
+    --tw-scale-y: 95%;
+    --tw-scale-z: 95%;
+    scale: var(--tw-scale-x) var(--tw-scale-y);
+  }
+
   .active\:scale-\[0\.98\]:active {
     scale: .98;
+  }
+
+  .active\:cursor-grabbing:active {
+    cursor: grabbing;
   }
 
   .disabled\:pointer-events-none:disabled {

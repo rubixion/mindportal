@@ -1,6 +1,6 @@
-import { useEffect, type ComponentType } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import { Bookmark, CalendarDays, Globe, ListChecks, NotebookPen, Repeat, Settings as Gear, Sun, X } from "lucide-react";
+import { useEffect, type ComponentType, type RefObject } from "react";
+import { AnimatePresence, motion, useDragControls, useMotionValue } from "motion/react";
+import { Bookmark, CalendarDays, Globe, GripVertical, ListChecks, NotebookPen, Repeat, Settings as Gear, Sun, X } from "lucide-react";
 import { ExpandableTabs, type ExpandableTab } from "@/components/ui/expandable-tabs";
 import { Button } from "@/components/ui/button";
 import { Ollie } from "@/components/ollie";
@@ -35,8 +35,16 @@ const VIEWS: Record<string, ComponentType> = {
   settings: Settings,
 };
 
-export function Panel({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function Panel({ open, onClose, bounds }: { open: boolean; onClose: () => void; bounds: RefObject<HTMLDivElement | null> }) {
   const [tab, setTab] = useStored("panelTab", "today");
+  const [pos, setPos] = useStored("panelPos", { x: 0, y: 0 });
+  const drag = useDragControls();
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  useEffect(() => {
+    x.set(pos.x);
+    y.set(pos.y);
+  }, [pos, x, y]);
   const View = VIEWS[tab] ?? Today;
 
   useEffect(() => {
@@ -49,6 +57,18 @@ export function Panel({ open, onClose }: { open: boolean; onClose: () => void })
   return (
     <AnimatePresence>
       {open && (
+        <motion.div
+          key="mp-panel"
+          drag
+          dragListener={false}
+          dragControls={drag}
+          dragConstraints={bounds}
+          dragMomentum={false}
+          dragElastic={0}
+          style={{ x, y }}
+          onDragEnd={() => setPos({ x: x.get(), y: y.get() })}
+          className="fixed right-3 top-3 h-[min(780px,calc(100vh-24px))] w-[400px] max-w-[calc(100vw-24px)]"
+        >
         <motion.aside
           role="dialog"
           aria-label="MindPortal"
@@ -56,9 +76,15 @@ export function Panel({ open, onClose }: { open: boolean; onClose: () => void })
           animate={{ x: 0 }}
           exit={{ x: "105%" }}
           transition={{ type: "spring", duration: 0.35, bounce: 0.08 }}
-          className="fixed right-3 top-3 bottom-3 flex w-[400px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-[22px] border border-white/10 bg-(--ollie-bg)/95 font-sans text-white shadow-[0_24px_80px_rgba(0,0,0,0.6),0_0_0_1px_rgb(100_130_210/0.08)] backdrop-blur-xl"
+          className="flex size-full flex-col overflow-hidden rounded-[22px] border border-white/10 bg-(--ollie-bg)/95 font-sans text-white shadow-[0_24px_80px_rgba(0,0,0,0.6),0_0_0_1px_rgb(100_130_210/0.08)] backdrop-blur-xl"
         >
-          <header className="flex items-center gap-2 px-4 pt-3.5 pb-2">
+          <header
+            className="flex cursor-grab touch-none items-center gap-2 px-4 pt-3.5 pb-2 active:cursor-grabbing"
+            title="Drag to move · double-click to reset"
+            onPointerDown={(e) => { if (!(e.target as HTMLElement).closest("button")) drag.start(e); }}
+            onDoubleClick={(e) => { if (!(e.target as HTMLElement).closest("button")) setPos({ x: 0, y: 0 }); }}
+          >
+            <GripVertical className="-ml-2 size-3.5 text-white/25" aria-hidden />
             <Ollie size={26} />
             <span className="text-[15px] font-bold tracking-tight">MindPortal</span>
             <span className="flex-1" />
@@ -79,6 +105,7 @@ export function Panel({ open, onClose }: { open: boolean; onClose: () => void })
             </motion.div>
           </div>
         </motion.aside>
+        </motion.div>
       )}
     </AnimatePresence>
   );

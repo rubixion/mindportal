@@ -13,6 +13,7 @@ export function Settings() {
   const [stored, setStored] = useStored<S>("settings", DEFAULT_SETTINGS);
   const s = { ...DEFAULT_SETTINGS, ...stored };
   const [confirmReset, setConfirmReset] = useState(false);
+  const [hiddenSites, setHiddenSites] = useStored<string[]>("fabHiddenSites", []);
   const set = (p: Partial<S>) => setStored({ ...s, ...p, onboardingComplete: true });
 
   const num = (key: NumKey, label: string, min: number, max: number, hint?: string) => (
@@ -61,7 +62,16 @@ export function Settings() {
       <div className="mp-card space-y-3">
         <span className="mp-label">Panel</span>
         {toggle("showOverlayButton", "Show the floating owl button on pages")}
-        <p className="text-[11px] text-white/35">Alt+M always opens the panel.</p>
+        {hiddenSites.length > 0 && (
+          <div className="flex items-center gap-2 text-[12px] text-white/55">
+            <span className="flex-1">Hidden on {hiddenSites.length} site{hiddenSites.length === 1 ? "" : "s"}: {hiddenSites.slice(0, 2).join(", ")}{hiddenSites.length > 2 ? "…" : ""}</span>
+            <Button size="sm" variant="brandOutline" onClick={() => setHiddenSites([])}>Show everywhere</Button>
+          </div>
+        )}
+        <Button size="sm" variant="ghost" className="w-full" onClick={() => chrome.storage.local.set({ fabPos: { x: 0, y: 0 }, panelPos: { x: 0, y: 0 } })}>
+          Reset button & panel position
+        </Button>
+        <p className="text-[11px] text-white/35">Drag the owl or the panel header to move them. Hover the owl and click × to hide it on that site. Alt+M always opens the panel.</p>
       </div>
 
       <div className="mp-card space-y-2">

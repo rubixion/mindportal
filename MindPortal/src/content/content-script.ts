@@ -18,6 +18,7 @@ if (!document.getElementById("mp-overlay-root")) {
 
 async function main() {
   const storage = await getStorage();
+  if (!storage?.settings) return;
 
   const domain = extractDomain(window.location.href);
   if (!domain) return;
@@ -37,6 +38,11 @@ async function main() {
 
   const mode = session.focusModeActive || autoBlock ? "block" : settings.warningMode;
 
+  // this script runs at document_start; wait for <body> before touching the page
+  if (document.readyState === "loading") {
+    await new Promise((r) => document.addEventListener("DOMContentLoaded", r, { once: true }));
+  }
+  if (!document.body) return;
   showOverlay(domain, mode, settings.countdownSeconds, session.intention, storage);
 }
 
@@ -69,7 +75,7 @@ function showOverlay(
     #mp-overlay-root * { box-sizing: border-box; margin: 0; padding: 0; }
     #mp-overlay-root button:focus-visible { outline: 2px solid #6982d8; outline-offset: 2px; }
   `;
-  document.head.appendChild(style);
+  (document.head ?? document.documentElement).appendChild(style);
 
   const root = document.createElement("div");
   root.id = "mp-overlay-root";
