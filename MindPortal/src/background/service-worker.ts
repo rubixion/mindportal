@@ -301,7 +301,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     const ev = ((events as CalEvent[] | undefined) ?? []).find((e) => ALARM_EVENT + e.id === alarm.name);
     if (ev) {
       const before = ev.remindBefore ?? 0;
-      const lead = before === 0 ? "Starting now" : before >= 1440 ? "Tomorrow" : before >= 60 ? `In ${before / 60} hour${before > 60 ? "s" : ""}` : `In ${before} minutes`;
+      const lead = !ev.time ? (before >= 1440 ? "Tomorrow" : "Today") : before === 0 ? "Starting now" : before >= 1440 ? "Tomorrow" : before >= 60 ? `In ${before / 60} hour${before > 60 ? "s" : ""}` : `In ${before} minutes`;
       chrome.notifications.create(`${alarm.name}_${Date.now()}`, {
         type: "basic",
         iconUrl: chrome.runtime.getURL("assets/icons/icon48.png"),

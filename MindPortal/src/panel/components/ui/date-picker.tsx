@@ -6,7 +6,8 @@ import * as React from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { CalendarDays, Clock } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
+import { cn, usePopup } from "@/lib/utils";
+import { Dropdown } from "@/components/ui/dropdown";
 import { timeRange } from "../../../shared/events";
 
 export interface DatePreset {
@@ -35,8 +36,13 @@ const DEFAULT_PRESETS: DatePreset[] = [
   { label: "In a week", getValue: () => inDays(7) },
 ];
 
-const TIME_FIELD_CLASS =
-  "cursor-pointer rounded-lg border border-white/10 bg-black/40 px-1.5 py-1 text-xs text-white outline-none focus-visible:ring-2 focus-visible:ring-(--ollie-cyan)/60 [color-scheme:dark]";
+
+const HOURS = Array.from({ length: 24 }, (_, i) => ({ value: String(i), label: `${i % 12 || 12} ${i < 12 ? "AM" : "PM"}` }));
+const minuteItems = (current: number) =>
+  Array.from({ length: 12 }, (_, i) => i * 5)
+    .concat(current % 5 ? [current] : [])
+    .sort((a, b) => a - b)
+    .map((i) => ({ value: String(i), label: String(i).padStart(2, "0") }));
 
 function HourMinute({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   const [h, m] = value.split(":").map(Number);
@@ -44,17 +50,11 @@ function HourMinute({ label, value, onChange }: { label: string; value: string; 
   return (
     <div className="flex items-center gap-1 text-xs">
       <span className="w-10 text-white/45">{label}</span>
-      <select aria-label={`${label} hour`} value={h} onChange={(e) => set(Number(e.target.value), m!)} className={TIME_FIELD_CLASS}>
-        {Array.from({ length: 24 }, (_, i) => (
-          <option key={i} value={i}>{`${i % 12 || 12} ${i < 12 ? "AM" : "PM"}`}</option>
-        ))}
-      </select>
+      <Dropdown size="sm" label={`${label} hour`} value={String(h)} onChange={(v) => set(Number(v), m!)}
+        items={HOURS} className="w-[74px]" />
       <span className="text-white/40">:</span>
-      <select aria-label={`${label} minute`} value={m} onChange={(e) => set(h!, Number(e.target.value))} className={TIME_FIELD_CLASS}>
-        {Array.from({ length: 12 }, (_, i) => i * 5).concat(m! % 5 ? [m!] : []).sort((a, b) => a - b).map((i) => (
-          <option key={i} value={i}>{String(i).padStart(2, "0")}</option>
-        ))}
-      </select>
+      <Dropdown size="sm" label={`${label} minute`} value={String(m)} onChange={(v) => set(h!, Number(v))}
+        items={minuteItems(m!)} className="w-[58px]" />
     </div>
   );
 }
@@ -102,6 +102,7 @@ export function DatePicker({
   className?: string;
 }) {
   const [open, setOpen] = React.useState(false);
+  usePopup(open);
   const root = React.useRef<HTMLDivElement>(null);
   const popup = React.useRef<HTMLDivElement>(null);
 

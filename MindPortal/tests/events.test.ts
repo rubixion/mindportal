@@ -31,5 +31,6 @@ describe("nextReminder", () => {
     expect(nextReminder(ev({ repeat: "daily" }), at("2026-10-08", "10:00"))).toBe(at("2026-10-09", "09:00")));
   it("finds a 1-day-before reminder for tomorrow", () =>
     expect(nextReminder(ev({ date: "2026-10-09", remindBefore: 1440 }), at("2026-10-08", "08:00"))).toBe(at("2026-10-08", "09:00")));
-  it("no reminder for all-day events", () => expect(nextReminder(ev({ time: "" }), at("2026-10-01", "08:00"))).toBeNull());
+  it("all-day events remind at 9 AM", () => expect(nextReminder(ev({ time: "" }), at("2026-10-08", "08:00"))).toBe(at("2026-10-08", "09:00")));
+  it("no reminder when turned off", () => expect(nextReminder(ev({ remind: false }), at("2026-10-08", "08:00"))).toBeNull());
 });

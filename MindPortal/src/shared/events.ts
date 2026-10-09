@@ -73,14 +73,18 @@ export function nextOccurrence(e: CalEvent, fromKey: string): string | null {
   return null;
 }
 
+/** All-day events have no start time, so their reminders are anchored here. */
+export const ALL_DAY_REMINDER_TIME = "09:00";
+
 /** When the next reminder for `e` should fire (epoch ms after `now`), or null. */
 export function nextReminder(e: CalEvent, now: number): number | null {
-  if (!e.remind || !e.time) return null;
+  if (!e.remind) return null;
+  const base = e.time || ALL_DAY_REMINDER_TIME;
   const before = Math.max(0, e.remindBefore ?? 0) * 60_000;
   // start a day back so a "1 day before" reminder for tomorrow is still found
   let key = nextOccurrence(e, localDate(new Date(now - 86_400_000)));
   for (let i = 0; i < 5 && key; i++) {
-    const when = at(key, e.time) - before;
+    const when = at(key, base) - before;
     if (when > now) return when;
     key = nextOccurrence(e, addDays(key, 1));
   }

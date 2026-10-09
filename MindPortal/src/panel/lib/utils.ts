@@ -74,6 +74,19 @@ export function useStored<T>(key: string, fallback: T): [T, (v: T | ((prev: T) =
   return [value, set];
 }
 
+/** How many dropdowns/pickers are open; the panel ignores Escape while any are (they close first). */
+export const popups = { open: 0 };
+
+/** Registers an open popup with `popups` while `open` is true. */
+export function usePopup(open: boolean) {
+  useEffect(() => {
+    if (!open) return;
+    popups.open++;
+    // released a tick late so the same Escape keypress doesn't reach the panel after the popup closes
+    return () => void setTimeout(() => popups.open--, 0);
+  }, [open]);
+}
+
 /** Re-renders every `ms` (for countdowns). */
 export function useNow(ms = 1000) {
   const [now, setNow] = useState(Date.now());

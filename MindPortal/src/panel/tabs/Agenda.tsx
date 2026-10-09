@@ -3,6 +3,7 @@ import { Bell, ChevronDown, ExternalLink, MapPin, Pencil, Plus, Repeat as Repeat
 import { AnimatePresence, motion } from "motion/react";
 import { Calendar } from "@/components/ui/calendar";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Dropdown } from "@/components/ui/dropdown";
 import { Button } from "@/components/ui/button";
 import { cn, localDate, parseLocalDate, uid, useStored } from "@/lib/utils";
 import { addDays, nextOccurrence, occursOn, REMINDER_OPTIONS, REPEAT_LABELS, timeRange } from "../../shared/events";
@@ -67,7 +68,7 @@ export function Agenda() {
   const setTimes = (start: string, end: string) => {
     // keep the end after the start; default to a one-hour event
     if (start && (!end || end <= start)) end = plusHour(start);
-    patch({ time: start, endTime: start ? end : "" });
+    setDraft((d) => ({ ...d, time: start, endTime: start ? end : "", reminder: !start && d.reminder > 0 && d.reminder < 1440 ? 0 : d.reminder }));
   };
 
   const reset = () => {
@@ -85,7 +86,7 @@ export function Agenda() {
       title,
       location: rest.location?.trim(),
       notes: rest.notes?.trim(),
-      remind: reminder >= 0 && !!draft.time,
+      remind: reminder >= 0,
       remindBefore: Math.max(0, reminder),
     };
     if (editingId) setEvents((all) => all.map((e) => (e.id === editingId ? { ...e, ...fields, date: key } : e)));
@@ -163,22 +164,18 @@ export function Agenda() {
 
           <AnimatePresence initial={false}>
             {more && (
-              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }} className="space-y-2 overflow-hidden">
-                <label className="flex items-center gap-2">
-                  <RepeatIcon className="size-3.5 shrink-0 text-white/40" />
-                  <select className={field} value={draft.repeat} onChange={(e) => patch({ repeat: e.target.value as Repeat })} aria-label="Repeat">
-                    {(Object.keys(REPEAT_LABELS) as Repeat[]).map((r) => <option key={r} value={r}>{REPEAT_LABELS[r]}</option>)}
-                  </select>
-                </label>
-                <label className="flex items-center gap-2">
-                  <Bell className="size-3.5 shrink-0 text-white/40" />
-                  <select className={field} value={draft.time ? draft.reminder : -1} disabled={!draft.time}
-                    onChange={(e) => patch({ reminder: Number(e.target.value) })} aria-label="Reminder"
-                    title={draft.time ? undefined : "Set a start time to get a reminder"}>
-                    {REMINDER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </label>
+              <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.16 }} className="space-y-2">
+                <Dropdown label="Repeat" icon={<RepeatIcon className="size-3.5" />} value={draft.repeat ?? "none"}
+                  onChange={(v) => patch({ repeat: v as Repeat })}
+                  items={(Object.keys(REPEAT_LABELS) as Repeat[]).map((r) => ({ value: r, label: REPEAT_LABELS[r] }))} />
+                <Dropdown label="Reminder" icon={<Bell className="size-3.5" />} value={String(draft.reminder)}
+                  onChange={(v) => patch({ reminder: Number(v) })}
+                  items={REMINDER_OPTIONS.map((o) => ({
+                    value: String(o.value),
+                    // all-day events remind relative to 9 AM on the day
+                    label: !draft.time && o.value === 0 ? "On the day (9 AM)" : !draft.time && o.value === 1440 ? "Day before (9 AM)" : o.label,
+                  })).filter((o) => draft.time || ["-1", "0", "1440"].includes(o.value))} />
                 <label className="flex items-center gap-2">
                   <MapPin className="size-3.5 shrink-0 text-white/40" />
                   <input className={field} placeholder="Add location" value={draft.location} maxLength={200} onChange={(e) => patch({ location: e.target.value })} />

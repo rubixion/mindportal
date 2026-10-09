@@ -4,7 +4,7 @@ import { Bookmark, CalendarDays, Globe, GripVertical, ListChecks, NotebookPen, R
 import { ExpandableTabs, type ExpandableTab } from "@/components/ui/expandable-tabs";
 import { Button } from "@/components/ui/button";
 import { Ollie } from "@/components/ollie";
-import { useStored } from "@/lib/utils";
+import { popups, useStored } from "@/lib/utils";
 import { Today } from "./tabs/Today";
 import { Notes } from "./tabs/Notes";
 import { Lists } from "./tabs/Lists";
@@ -89,7 +89,7 @@ export function Panel({ open, onClose, bounds }: { open: boolean; onClose: () =>
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && popups.open === 0 && onClose();
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, [open, onClose]);

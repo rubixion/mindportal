@@ -224,12 +224,14 @@ function nextOccurrence(e, fromKey) {
   for (let i = 0; i < 1500; i++, key = addDays(key, 1)) if (occursOn(e, key)) return key;
   return null;
 }
+const ALL_DAY_REMINDER_TIME = "09:00";
 function nextReminder(e, now) {
-  if (!e.remind || !e.time) return null;
+  if (!e.remind) return null;
+  const base = e.time || ALL_DAY_REMINDER_TIME;
   const before = Math.max(0, e.remindBefore ?? 0) * 6e4;
   let key = nextOccurrence(e, localDate(new Date(now - 864e5)));
   for (let i = 0; i < 5 && key; i++) {
-    const when = at(key, e.time) - before;
+    const when = at(key, base) - before;
     if (when > now) return when;
     key = nextOccurrence(e, addDays(key, 1));
   }
@@ -465,7 +467,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     const ev = (events ?? []).find((e) => ALARM_EVENT + e.id === alarm.name);
     if (ev) {
       const before = ev.remindBefore ?? 0;
-      const lead = before === 0 ? "Starting now" : before >= 1440 ? "Tomorrow" : before >= 60 ? `In ${before / 60} hour${before > 60 ? "s" : ""}` : `In ${before} minutes`;
+      const lead = !ev.time ? before >= 1440 ? "Tomorrow" : "Today" : before === 0 ? "Starting now" : before >= 1440 ? "Tomorrow" : before >= 60 ? `In ${before / 60} hour${before > 60 ? "s" : ""}` : `In ${before} minutes`;
       chrome.notifications.create(`${alarm.name}_${Date.now()}`, {
         type: "basic",
         iconUrl: chrome.runtime.getURL("assets/icons/icon48.png"),
