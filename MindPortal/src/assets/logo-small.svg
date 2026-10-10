@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="100%" height="100%">
+  <!-- 16px version: detail drops out, so just the tile and two eyes -->
+  <rect x="0" y="0" width="16" height="16" rx="4" fill="#171c2b"/>
+  <circle cx="5" cy="8.5" r="3.4" fill="#f2f4ff"/>
+  <circle cx="11" cy="8.5" r="3.4" fill="#f2f4ff"/>
+  <circle cx="5" cy="8.5" r="1.9" fill="#6482d2"/>
+  <circle cx="11" cy="8.5" r="1.9" fill="#6482d2"/>
+  <circle cx="5" cy="8.5" r=".9" fill="#0b0c18"/>
+  <circle cx="11" cy="8.5" r=".9" fill="#0b0c18"/>
+</svg>

@@ -3,14 +3,14 @@
   "version": "1.0.0",
   "description": "FocusForge â€” Forge your focus, one day at a time.",
   "scripts": {
-    "prebuild": "node scripts/generate-icons.js",
-    "dev": "node scripts/generate-icons.js && vite build && vite build -c vite.content.config.mts --watch",
+    "dev": "vite build && vite build -c vite.content.config.mts --watch",
     "build": "vite build && vite build -c vite.content.config.mts",
     "lint": "eslint src tests --ext .ts",
     "lint:fix": "eslint src tests --ext .ts --fix",
     "format": "prettier --write \"src/**/*.{ts,html,css}\" \"tests/**/*.ts\"",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "icons": "node scripts/generate-icons.js"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

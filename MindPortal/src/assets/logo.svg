@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#171c2b"/>
+      <stop offset="1" stop-color="#0a0c13"/>
+    </linearGradient>
+    <linearGradient id="head" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#26304a"/>
+      <stop offset="1" stop-color="#1b2236"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="124" height="124" rx="30" fill="url(#bg)"/>
+  <rect x="2.75" y="2.75" width="122.5" height="122.5" rx="29.25" fill="none" stroke="#6482d2" stroke-opacity=".35" stroke-width="1.5"/>
+  <!-- head with ear tufts -->
+  <path d="M30 44 L26 20 L50 34 Q64 30 78 34 L102 20 L98 44 Q108 58 106 74 Q102 106 64 108 Q26 106 22 74 Q20 58 30 44 Z" fill="url(#head)"/>
+  <!-- eyes -->
+  <circle cx="45" cy="66" r="19" fill="#f2f4ff"/>
+  <circle cx="83" cy="66" r="19" fill="#f2f4ff"/>
+  <circle cx="45" cy="66" r="11" fill="#6482d2"/>
+  <circle cx="83" cy="66" r="11" fill="#6482d2"/>
+  <circle cx="45" cy="66" r="5.5" fill="#0b0c18"/>
+  <circle cx="83" cy="66" r="5.5" fill="#0b0c18"/>
+  <circle cx="48.5" cy="62.5" r="2.6" fill="#fff"/>
+  <circle cx="86.5" cy="62.5" r="2.6" fill="#fff"/>
+  <!-- beak -->
+  <path d="M58 86 L64 96 L70 86 Q64 83 58 86 Z" fill="#f5a623"/>
+</svg>
