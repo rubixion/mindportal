@@ -8,7 +8,7 @@ import { Ollie } from "../panel/components/ollie";
 import { Button } from "../panel/components/ui/button";
 import { send, useNow, useStored } from "../panel/lib/utils";
 import { DEFAULT_SESSION, DEFAULT_SETTINGS } from "../shared/defaults";
-import { categorizeDomain, extractDomain, formatCountdown, formatDuration, toDateString } from "../shared/utils";
+import { categorizeDomain, extractDomain, formatCountdown, toDateString } from "../shared/utils";
 import type { ActiveSession, DayRecord, Settings } from "../shared/types";
 
 const bus = new EventTarget();
@@ -35,6 +35,14 @@ function shadowCss(src: string): string {
 type Pos = { x: number; y: number };
 type Kind = "productiveSites" | "unproductiveSites";
 
+/** "1h 02m 05s" / "2m 05s" / "5s": always shows seconds so the live counters visibly tick. */
+const clock = (sec: number) => {
+  const t = Math.floor(sec);
+  const [h, m, s] = [Math.floor(t / 3600), Math.floor((t % 3600) / 60), t % 60];
+  const p = (n: number) => String(n).padStart(2, "0");
+  return h ? `${h}h ${p(m)}m ${p(s)}s` : m ? `${m}m ${p(s)}s` : `${s}s`;
+};
+
 /** Stats / pomodoro / distraction card that sits beside the floating button. */
 function FabCard({ left, onCollapse }: { left: boolean; onCollapse: () => void }) {
   const [stored, setSettings] = useStored<Settings>("settings", DEFAULT_SETTINGS);
@@ -50,6 +58,13 @@ function FabCard({ left, onCollapse }: { left: boolean; onCollapse: () => void }
   const category = categorizeDomain(domain, settings);
   const unmarked = category === "neutral" && !neutralSites.includes(domain);
   const today = daily[toDateString()];
+  // the service worker only saves time every ~30s (and on tab switches), so count this tab's
+  // unsaved seconds here; capped so a stalled worker can't run the numbers away
+  const savedAt = useRef(Date.now());
+  useEffect(() => void (savedAt.current = Date.now()), [daily]);
+  const live = document.visibilityState === "visible" && document.hasFocus() ? Math.min(60, (now - savedAt.current) / 1000) : 0;
+  const focused = (today?.productiveSeconds ?? 0) + (category === "productive" ? live : 0);
+  const distracted = (today?.unproductiveSeconds ?? 0) + (category === "unproductive" ? live : 0);
   const remaining = session.pomodoroActive && session.pomodoroEndTime ? (session.pomodoroEndTime - now) / 1000 : null;
 
   const mark = (kind: Kind | null) => {
@@ -99,9 +114,9 @@ function FabCard({ left, onCollapse }: { left: boolean; onCollapse: () => void }
       </div>
 
       {divider}
-      <div className="space-y-0.5 text-[11px] leading-tight text-white/60">
-        <div><span className="mr-1.5 inline-block size-1.5 rounded-full bg-green-400" />Focused <b className="text-white">{formatDuration(today?.productiveSeconds ?? 0)}</b></div>
-        <div><span className="mr-1.5 inline-block size-1.5 rounded-full bg-red-400" />Distracted <b className="text-white">{formatDuration(today?.unproductiveSeconds ?? 0)}</b></div>
+      <div className="space-y-0.5 text-[11px] leading-tight text-white/60 tabular-nums">
+        <div><span className="mr-1.5 inline-block size-1.5 rounded-full bg-green-400" />Focused <b className="text-white">{clock(focused)}</b></div>
+        <div><span className="mr-1.5 inline-block size-1.5 rounded-full bg-red-400" />Distracted <b className="text-white">{clock(distracted)}</b></div>
       </div>
 
       {category === "unproductive" && !stayed && (
@@ -109,7 +124,7 @@ function FabCard({ left, onCollapse }: { left: boolean; onCollapse: () => void }
           {divider}
           <div className="text-[11px] leading-tight">
             <div className="font-semibold text-red-300">Distracting site. Sure you want to be here?</div>
-            <div className="text-white/50">{formatDuration(today?.unproductiveSeconds ?? 0)} distracted today</div>
+            <div className="text-white/50">{clock(distracted)} distracted today</div>
           </div>
           <Button size="sm" className={chip} onClick={() => history.back()}>Leave</Button>
           <Button size="sm" variant="brandOutline" className={chip} onClick={() => setStayed(true)}>Stay</Button>
