@@ -17849,6 +17849,7 @@ function send(msg) {
 }
 function useStored(key, fallback) {
   const [value, setValue] = reactExports.useState(fallback);
+  const [loaded, setLoaded] = reactExports.useState(false);
   const ref = reactExports.useRef(value);
   const pending = reactExports.useRef(0);
   const fb = reactExports.useRef(fallback);
@@ -17859,6 +17860,7 @@ function useStored(key, fallback) {
         ref.current = r2[key];
         setValue(r2[key]);
       }
+      if (alive) setLoaded(true);
     });
     const onChange = (changes, area) => {
       if (area !== "local" || !(key in changes) || pending.current > 0) return;
@@ -17882,7 +17884,7 @@ function useStored(key, fallback) {
     },
     [key]
   );
-  return [value, set];
+  return [value, set, loaded];
 }
 function useNow(ms = 1e3) {
   const [now2, setNow] = reactExports.useState(Date.now());

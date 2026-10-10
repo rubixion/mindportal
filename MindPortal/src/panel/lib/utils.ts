@@ -33,8 +33,9 @@ export function send<T = unknown>(msg: Record<string, unknown>): Promise<T> {
  * State mirrored to chrome.storage.local and synced across tabs.
  * Echoes of our own writes are ignored while they are in flight so fast typing never reverts.
  */
-export function useStored<T>(key: string, fallback: T): [T, (v: T | ((prev: T) => T)) => void] {
+export function useStored<T>(key: string, fallback: T): [T, (v: T | ((prev: T) => T)) => void, boolean] {
   const [value, setValue] = useState<T>(fallback);
+  const [loaded, setLoaded] = useState(false);
   const ref = useRef(value);
   const pending = useRef(0);
   const fb = useRef(fallback);
@@ -46,6 +47,7 @@ export function useStored<T>(key: string, fallback: T): [T, (v: T | ((prev: T) =
         ref.current = r[key] as T;
         setValue(r[key] as T);
       }
+      if (alive) setLoaded(true);
     });
     const onChange = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
       if (area !== "local" || !(key in changes) || pending.current > 0) return;
@@ -71,7 +73,7 @@ export function useStored<T>(key: string, fallback: T): [T, (v: T | ((prev: T) =
     [key],
   );
 
-  return [value, set];
+  return [value, set, loaded];
 }
 
 /** How many dropdowns/pickers are open; the panel ignores Escape while any are (they close first). */

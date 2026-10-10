@@ -44,19 +44,29 @@ const clock = (sec: number) => {
 };
 
 /** Stats / pomodoro / distraction card that sits beside the floating button. */
-function FabCard({ left, onCollapse }: { left: boolean; onCollapse: () => void }) {
-  const [stored, setSettings] = useStored<Settings>("settings", DEFAULT_SETTINGS);
+function FabCard({
+  left,
+  hidden,
+  onCollapse,
+}: {
+  left: boolean;
+  hidden: boolean;
+  onCollapse: () => void;
+}) {
+  const [stored, setSettings, settingsLoaded] = useStored<Settings>("settings", DEFAULT_SETTINGS);
   const settings = { ...DEFAULT_SETTINGS, ...stored };
   const [storedSession] = useStored<ActiveSession>("session", DEFAULT_SESSION);
   const session = { ...DEFAULT_SESSION, ...storedSession };
-  const [neutralSites, setNeutralSites] = useStored<string[]>("neutralSites", []);
+  const [neutralSites, setNeutralSites, neutralLoaded] = useStored<string[]>("neutralSites", []);
   const [daily] = useStored<Record<string, DayRecord>>("dailyData", {});
   const [stayed, setStayed] = useState(false);
   const now = useNow();
 
   const domain = extractDomain(location.href);
   const category = categorizeDomain(domain, settings);
-  const unmarked = category === "neutral" && !neutralSites.includes(domain);
+  // until the site lists load, every site looks unmarked; don't flash the warning / mark buttons
+  const ready = settingsLoaded && neutralLoaded;
+  const unmarked = ready && category === "neutral" && !neutralSites.includes(domain);
   const today = daily[toDateString()];
   // the service worker only saves time every ~30s (and on tab switches), so count this tab's
   // unsaved seconds here; capped so a stalled worker can't run the numbers away
@@ -104,6 +114,7 @@ function FabCard({ left, onCollapse }: { left: boolean; onCollapse: () => void }
       // clicks in the bar shouldn't start dragging the button
       onPointerDown={(e) => e.stopPropagation()}
       className={`absolute top-0 flex h-[52px] items-center gap-3 rounded-full border border-(--ollie-cyan)/30 bg-[#15172b] px-2 font-sans whitespace-nowrap text-white shadow-[0_8px_30px_rgba(0,0,0,0.45),0_0_0_4px_var(--ollie-glow)] ${left ? "right-full mr-3" : "left-full ml-3"}`}
+      style={hidden ? { display: "none" } : undefined}
     >
       {!left && collapse}
       <Button
@@ -137,7 +148,7 @@ function FabCard({ left, onCollapse }: { left: boolean; onCollapse: () => void }
         </div>
       </div>
 
-      {category === "unproductive" && !stayed && (
+      {ready && category === "unproductive" && !stayed && (
         <>
           {divider}
           <div className="text-[11px] leading-tight">
@@ -195,11 +206,17 @@ function Overlay() {
   const [open, setOpen] = useState(false);
   const [settings] = useStored<Settings>("settings", DEFAULT_SETTINGS);
   const [hiddenSites, setHiddenSites] = useStored<string[]>("fabHiddenSites", []);
-  const [fabPos, setFabPos] = useStored<Pos>("fabPos", { x: 0, y: 0 });
-  const [collapsed, setCollapsed] = useStored<boolean>("fabCollapsed", false);
-  const [fabScale, setFabScale] = useStored<number>("fabScale", 1);
+  const [fabPos, setFabPos, posLoaded] = useStored<Pos>("fabPos", { x: 0, y: 0 });
+  const [collapsed, setCollapsed, collapsedLoaded] = useStored<boolean>("fabCollapsed", false);
+  const [fabScale, setFabScale, scaleLoaded] = useStored<number>("fabScale", 1);
   const site = location.hostname;
-  const showFab = (settings.showOverlayButton ?? true) && !hiddenSites.includes(site);
+  // wait for the saved position/size/collapsed state so the button doesn't flash its defaults first
+  const showFab =
+    posLoaded &&
+    collapsedLoaded &&
+    scaleLoaded &&
+    (settings.showOverlayButton ?? true) &&
+    !hiddenSites.includes(site);
   const close = useCallback(() => setOpen(false), []);
   const bounds = useRef<HTMLDivElement>(null);
   const dragged = useRef(false);
@@ -302,13 +319,14 @@ function Overlay() {
             >
               <Scaling className="size-3" />
             </button>
-            {collapsed ? (
+            {collapsed && (
               <button
                 type="button"
                 aria-label="Show focus bar"
                 title="Show focus bar"
                 onClick={() => setCollapsed(false)}
-                className={`absolute top-1/2 flex h-8 w-4 -translate-y-1/2 cursor-pointer items-center justify-center text-white/35 outline-none transition-colors hover:text-white focus-visible:text-white ${left ? "-left-4" : "-right-4"}`}
+                // a little tab in the owl's own colours, tucked against its side, so it shows on light and dark pages
+                className={`absolute top-1/2 flex h-7 w-4 -translate-y-1/2 cursor-pointer items-center justify-center border border-(--ollie-cyan)/30 bg-[#15172b] text-white/60 shadow-[0_4px_12px_rgba(0,0,0,0.35)] outline-none transition-colors hover:text-white focus-visible:text-white ${left ? "-left-3.5 rounded-l-full border-r-0" : "-right-3.5 rounded-r-full border-l-0"}`}
               >
                 {left ? (
                   <ChevronLeft className="size-3.5" />
@@ -316,9 +334,9 @@ function Overlay() {
                   <ChevronRight className="size-3.5" />
                 )}
               </button>
-            ) : (
-              <FabCard left={left} onCollapse={() => setCollapsed(true)} />
             )}
+            {/* stays mounted while collapsed so expanding shows it already loaded */}
+            <FabCard left={left} hidden={collapsed} onCollapse={() => setCollapsed(true)} />
           </motion.div>
         </MotionConfig>
       )}
