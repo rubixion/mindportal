@@ -63,6 +63,12 @@ function showOverlay(
 ) {
   document.documentElement.style.overflow = "hidden";
 
+  // Shadow DOM so host-page CSS (e.g. reddit's button/label rules) can't leak in
+  const host = document.createElement("div");
+  host.id = "mp-overlay-root";
+  host.setAttribute("style", "all: initial;");
+  const shadow = host.attachShadow({ mode: "open" });
+
   // Inject styles
   const style = document.createElement("style");
   style.textContent = `
@@ -72,13 +78,13 @@ function showOverlay(
     @media (prefers-reduced-motion: reduce) {
       .mp-animated { animation: none !important; transition: none !important; }
     }
-    #mp-overlay-root * { box-sizing: border-box; margin: 0; padding: 0; }
-    #mp-overlay-root button:focus-visible { outline: 2px solid #6982d8; outline-offset: 2px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    button { line-height: 1.2; }
+    button:focus-visible { outline: 2px solid #6982d8; outline-offset: 2px; }
   `;
-  (document.head ?? document.documentElement).appendChild(style);
+  shadow.appendChild(style);
 
   const root = document.createElement("div");
-  root.id = "mp-overlay-root";
   root.setAttribute("role", "dialog");
   root.setAttribute("aria-modal", "true");
   root.setAttribute("aria-label", "MindPortal focus reminder");
@@ -193,16 +199,17 @@ function showOverlay(
   }
 
   root.appendChild(card);
-  document.body.appendChild(root);
+  shadow.appendChild(root);
+  document.body.appendChild(host);
 
   // Go back
-  document.getElementById("mp-go-back")?.addEventListener("click", () => {
+  shadow.getElementById("mp-go-back")?.addEventListener("click", () => {
     removeOverlay();
     history.back();
   });
 
   // Delay queue (block mode)
-  document.getElementById("mp-queue-btn")?.addEventListener("click", () => {
+  shadow.getElementById("mp-queue-btn")?.addEventListener("click", () => {
     chrome.runtime.sendMessage({ type: "ADD_DELAY_QUEUE", domain });
     removeOverlay();
     history.back();
@@ -210,11 +217,11 @@ function showOverlay(
 
   // Countdown / continue (warn / countdown modes)
   if (mode === "warn") {
-    document.getElementById("mp-continue-btn")?.addEventListener("click", () => handleContinue());
+    shadow.getElementById("mp-continue-btn")?.addEventListener("click", () => handleContinue());
   } else if (mode === "countdown") {
     let remaining = countdownSeconds;
-    const countdownEl = document.getElementById(countdownId);
-    const continueBtn = document.getElementById(continueId) as HTMLButtonElement | null;
+    const countdownEl = shadow.getElementById(countdownId);
+    const continueBtn = shadow.getElementById(continueId) as HTMLButtonElement | null;
 
     const interval = setInterval(() => {
       remaining--;
@@ -231,7 +238,7 @@ function showOverlay(
   }
 
   function handleContinue() {
-    const cb = document.getElementById("mp-dismiss-today") as HTMLInputElement | null;
+    const cb = shadow.getElementById("mp-dismiss-today") as HTMLInputElement | null;
     if (cb?.checked) {
       chrome.runtime.sendMessage({ type: "DISMISS_SITE_TODAY", domain });
     }
@@ -239,8 +246,7 @@ function showOverlay(
   }
 
   function removeOverlay() {
-    root.remove();
-    style.remove();
+    host.remove();
     document.documentElement.style.overflow = "";
   }
 }
