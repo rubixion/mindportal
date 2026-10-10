@@ -41,7 +41,8 @@
     "notifications",
     "scripting",
     "activeTab",
-    "contextMenus"
+    "contextMenus",
+    "idle"
   ],
   "host_permissions": [
     "<all_urls>"

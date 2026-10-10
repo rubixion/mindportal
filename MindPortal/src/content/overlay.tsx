@@ -72,8 +72,10 @@ function FabCard({
   // unsaved seconds here; capped so a stalled worker can't run the numbers away
   const savedAt = useRef(Date.now());
   useEffect(() => void (savedAt.current = Date.now()), [daily]);
+  // the worker clears currentDomain when Chrome is unfocused or there's been no input for 5 min
+  const tracking = session.currentDomain === domain;
   const live =
-    document.visibilityState === "visible" && document.hasFocus()
+    tracking && document.visibilityState === "visible" && document.hasFocus()
       ? Math.min(60, (now - savedAt.current) / 1000)
       : 0;
   const focused = (today?.productiveSeconds ?? 0) + (category === "productive" ? live : 0);
@@ -146,6 +148,7 @@ function FabCard({
           <span className="mr-1.5 inline-block size-1.5 rounded-full bg-red-400" />
           Distracted <b className="text-white">{clock(distracted)}</b>
         </div>
+        {!tracking && <div className="text-amber-300/80">Paused · inactive</div>}
       </div>
 
       {ready && category === "unproductive" && !stayed && (

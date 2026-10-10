@@ -137,9 +137,17 @@ function scheduleMidnightAlarm() {
 let trackingDomain: string | null = null;
 let trackingStart: number | null = null;
 
+// time only counts with Chrome focused and some keyboard/mouse input in the last 5 min
+const IDLE_SECONDS = 5 * 60;
+chrome.idle.setDetectionInterval(IDLE_SECONDS);
+
 async function getCurrentActiveDomain(): Promise<string | null> {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    // ponytail: idle is system-wide input, not Chrome-only; Chrome window focus covers the rest
+    if ((await chrome.idle.queryState(IDLE_SECONDS)) !== "active") return null;
+    const win = await chrome.windows.getLastFocused({ populate: true });
+    if (!win.focused) return null;
+    const tab = win.tabs?.find((t) => t.active);
     if (!tab?.url) return null;
     const url = tab.url;
     if (url.startsWith("chrome://") || url.startsWith("chrome-extension://") || url.startsWith("about:")) {
@@ -261,16 +269,9 @@ chrome.tabs.onActivated.addListener(onTabChange);
 chrome.tabs.onUpdated.addListener(async (_tabId, changeInfo) => {
   if (changeInfo.status === "complete") await onTabChange();
 });
-chrome.windows.onFocusChanged.addListener(async (windowId) => {
-  if (windowId === chrome.windows.WINDOW_ID_NONE) {
-    const now = Date.now();
-    await flushCurrentDomain(now);
-    trackingDomain = null;
-    trackingStart = null;
-  } else {
-    await onTabChange();
-  }
-});
+// both pause (domain becomes null, which the page bar shows as "inactive") and resume
+chrome.windows.onFocusChanged.addListener(onTabChange);
+chrome.idle.onStateChanged.addListener(onTabChange);
 
 // ─── Alarm Handler ────────────────────────────────────────────────────────────
 

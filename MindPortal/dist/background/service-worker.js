@@ -336,9 +336,14 @@ function scheduleMidnightAlarm() {
 }
 let trackingDomain = null;
 let trackingStart = null;
+const IDLE_SECONDS = 5 * 60;
+chrome.idle.setDetectionInterval(IDLE_SECONDS);
 async function getCurrentActiveDomain() {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (await chrome.idle.queryState(IDLE_SECONDS) !== "active") return null;
+    const win = await chrome.windows.getLastFocused({ populate: true });
+    if (!win.focused) return null;
+    const tab = win.tabs?.find((t) => t.active);
     if (!tab?.url) return null;
     const url = tab.url;
     if (url.startsWith("chrome://") || url.startsWith("chrome-extension://") || url.startsWith("about:")) {
@@ -435,16 +440,8 @@ chrome.tabs.onActivated.addListener(onTabChange);
 chrome.tabs.onUpdated.addListener(async (_tabId, changeInfo) => {
   if (changeInfo.status === "complete") await onTabChange();
 });
-chrome.windows.onFocusChanged.addListener(async (windowId) => {
-  if (windowId === chrome.windows.WINDOW_ID_NONE) {
-    const now = Date.now();
-    await flushCurrentDomain(now);
-    trackingDomain = null;
-    trackingStart = null;
-  } else {
-    await onTabChange();
-  }
-});
+chrome.windows.onFocusChanged.addListener(onTabChange);
+chrome.idle.onStateChanged.addListener(onTabChange);
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   const now = Date.now();
   if (alarm.name === ALARM_TICK) {
