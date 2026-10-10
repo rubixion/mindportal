@@ -328,8 +328,7 @@ function Overlay() {
                 aria-label="Show focus bar"
                 title="Show focus bar"
                 onClick={() => setCollapsed(false)}
-                // a little tab in the owl's own colours, tucked against its side, so it shows on light and dark pages
-                className={`absolute top-1/2 flex h-7 w-4 -translate-y-1/2 cursor-pointer items-center justify-center border border-(--ollie-cyan)/30 bg-[#15172b] text-white/60 shadow-[0_4px_12px_rgba(0,0,0,0.35)] outline-none transition-colors hover:text-white focus-visible:text-white ${left ? "-left-3.5 rounded-l-full border-r-0" : "-right-3.5 rounded-r-full border-l-0"}`}
+                className={`absolute top-1/2 flex h-8 w-4 -translate-y-1/2 cursor-pointer items-center justify-center text-white/35 outline-none transition-colors hover:text-white focus-visible:text-white ${left ? "-left-4" : "-right-4"}`}
               >
                 {left ? (
                   <ChevronLeft className="size-3.5" />

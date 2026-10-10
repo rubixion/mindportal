@@ -583,6 +583,10 @@
     right: calc(var(--spacing) * -3.5);
   }
 
+  .-right-4 {
+    right: calc(var(--spacing) * -4);
+  }
+
   .right-3 {
     right: calc(var(--spacing) * 3);
   }
@@ -633,6 +637,10 @@
 
   .-left-3\.5 {
     left: calc(var(--spacing) * -3.5);
+  }
+
+  .-left-4 {
+    left: calc(var(--spacing) * -4);
   }
 
   .left-0 {
@@ -2128,6 +2136,10 @@
 
   .text-\[\#0b0b14\] {
     color: #0b0b14;
+  }
+
+  .text-amber-300 {
+    color: var(--color-amber-300);
   }
 
   .text-amber-300\/80 {
