@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { motion, useMotionValue } from "motion/react";
-import { Play, Square, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play, Scaling, Square, X } from "lucide-react";
 import css from "../panel/styles.css?inline";
 import { Panel } from "../panel/Panel";
 import { Ollie } from "../panel/components/ollie";
@@ -36,7 +36,7 @@ type Pos = { x: number; y: number };
 type Kind = "productiveSites" | "unproductiveSites";
 
 /** Stats / pomodoro / distraction card that sits beside the floating button. */
-function FabCard({ left }: { left: boolean }) {
+function FabCard({ left, onCollapse }: { left: boolean; onCollapse: () => void }) {
   const [stored, setSettings] = useStored<Settings>("settings", DEFAULT_SETTINGS);
   const settings = { ...DEFAULT_SETTINGS, ...stored };
   const [storedSession] = useStored<ActiveSession>("session", DEFAULT_SESSION);
@@ -62,13 +62,25 @@ function FabCard({ left }: { left: boolean }) {
 
   const divider = <div className="h-7 w-px shrink-0 bg-white/10" />;
   const chip = "h-6 rounded-md px-2 text-[11px]";
+  const collapse = (
+    <button
+      type="button"
+      aria-label="Collapse to just the owl"
+      title="Collapse"
+      onClick={onCollapse}
+      className="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full text-white/50 outline-none hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-(--ollie-cyan)"
+    >
+      {left ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+    </button>
+  );
 
   return (
     <div
       // clicks in the bar shouldn't start dragging the button
       onPointerDown={(e) => e.stopPropagation()}
-      className={`absolute top-0 flex h-[52px] items-center gap-3 rounded-full border border-(--ollie-cyan)/30 bg-[#15172b] px-2 pr-4 font-sans whitespace-nowrap text-white shadow-[0_8px_30px_rgba(0,0,0,0.45),0_0_0_4px_var(--ollie-glow)] ${left ? "right-full mr-3" : "left-full ml-3"}`}
+      className={`absolute top-0 flex h-[52px] items-center gap-3 rounded-full border border-(--ollie-cyan)/30 bg-[#15172b] px-2 font-sans whitespace-nowrap text-white shadow-[0_8px_30px_rgba(0,0,0,0.45),0_0_0_4px_var(--ollie-glow)] ${left ? "right-full mr-3" : "left-full ml-3"}`}
     >
+      {!left && collapse}
       <Button
         size="icon"
         className="size-9 shrink-0 rounded-full"
@@ -117,6 +129,7 @@ function FabCard({ left }: { left: boolean }) {
           </div>
         </>
       )}
+      {left && collapse}
     </div>
   );
 }
@@ -126,6 +139,8 @@ function Overlay() {
   const [settings] = useStored<Settings>("settings", DEFAULT_SETTINGS);
   const [hiddenSites, setHiddenSites] = useStored<string[]>("fabHiddenSites", []);
   const [fabPos, setFabPos] = useStored<Pos>("fabPos", { x: 0, y: 0 });
+  const [collapsed, setCollapsed] = useStored<boolean>("fabCollapsed", false);
+  const [fabScale, setFabScale] = useStored<number>("fabScale", 1);
   const site = location.hostname;
   const showFab = (settings.showOverlayButton ?? true) && !hiddenSites.includes(site);
   const close = useCallback(() => setOpen(false), []);
@@ -133,11 +148,32 @@ function Overlay() {
   const dragged = useRef(false);
   const x = useMotionValue(0);
   const y = useMotionValue(0);
+  const scale = useMotionValue(1);
+  // the button rests at right-4 (52px wide), so its centre is offset from there by the drag
+  const left = innerWidth - 42 + fabPos.x > innerWidth / 2;
 
   useEffect(() => {
     x.set(fabPos.x);
     y.set(fabPos.y);
   }, [fabPos, x, y]);
+  useEffect(() => scale.set(fabScale), [fabScale, scale]);
+
+  // drag the grip up to grow, down to shrink; the owl scales around its own centre
+  const startResize = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    const el = e.currentTarget;
+    el.setPointerCapture(e.pointerId);
+    const startY = e.clientY;
+    const start = scale.get();
+    const move = (ev: PointerEvent) => scale.set(Math.min(1.8, Math.max(0.6, start + (startY - ev.clientY) / 100)));
+    const up = () => {
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", up);
+      setFabScale(scale.get());
+    };
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", up);
+  };
 
   useEffect(() => {
     const t = () => setOpen((o) => !o);
@@ -155,12 +191,12 @@ function Overlay() {
           dragConstraints={bounds}
           dragMomentum={false}
           dragElastic={0}
-          style={{ x, y }}
+          style={{ x, y, scale }}
           onPointerDown={() => (dragged.current = false)}
           onDragStart={() => (dragged.current = true)}
           onDragEnd={() => setFabPos({ x: x.get(), y: y.get() })}
-          initial={{ scale: 0.6, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           className="group fixed right-4 bottom-4 size-[52px] touch-none"
         >
           <button
@@ -181,8 +217,28 @@ function Overlay() {
           >
             <X className="size-3" />
           </button>
-          {/* the button rests at right-4 (52px wide), so its centre is offset from there by the drag */}
-          <FabCard left={innerWidth - 42 + fabPos.x > innerWidth / 2} />
+          <button
+            type="button"
+            aria-label="Resize. Drag up to grow, down to shrink."
+            title="Drag up/down to resize"
+            onPointerDown={startResize}
+            className="absolute -top-1 -right-1 flex size-5 cursor-ns-resize touch-none items-center justify-center rounded-full border border-white/15 bg-[#0b0b0e] text-white/70 opacity-0 transition-opacity outline-none hover:text-white group-hover:opacity-100 focus-visible:opacity-100"
+          >
+            <Scaling className="size-3" />
+          </button>
+          {collapsed ? (
+            <button
+              type="button"
+              aria-label="Show focus bar"
+              title="Show focus bar"
+              onClick={() => setCollapsed(false)}
+              className={`absolute top-1/2 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-(--ollie-cyan)/30 bg-[#15172b] text-white/60 outline-none hover:text-white focus-visible:ring-2 focus-visible:ring-(--ollie-cyan) ${left ? "-left-8" : "-right-8"}`}
+            >
+              {left ? <ChevronLeft className="size-4" /> : <ChevronRight className="size-4" />}
+            </button>
+          ) : (
+            <FabCard left={left} onCollapse={() => setCollapsed(true)} />
+          )}
         </motion.div>
       )}
       <Panel open={open} onClose={close} bounds={bounds} />
