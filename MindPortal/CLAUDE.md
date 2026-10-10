@@ -35,7 +35,7 @@ Chrome MV3 focus extension. Features and install steps: [README.md](README.md). 
 
 ## Floating owl / focus bar
 
-- Bar: a 52px-tall pill, the same height as the owl. It holds the pomodoro start/stop and countdown, live Focused/Distracted, the distracting-site warning (Leave/Stay) and "Mark this site" (Distracting/Focus/Neutral). It flips to whichever side of the owl has room.
+- Bar: a 52px-tall pill, the same height as the owl. It holds the pomodoro start/stop and countdown, live Focused/Distracted, the distracting-site warning (text only) and "Mark this site" (Distracting/Focus/Neutral). It flips to whichever side of the owl has room.
 - It collapses with a chevron into an owl-only state, and a small navy tab on the owl's side expands it. `FabCard` stays mounted while collapsed (hidden with inline `display:none`) so expanding doesn't flash.
 - Hover the owl to see two controls:
   - top-left **X**: hides the owl on this site. It can be restored from the popup ("Show floating button on …") or from the Settings tab.

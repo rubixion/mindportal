@@ -59,7 +59,6 @@ function FabCard({
   const session = { ...DEFAULT_SESSION, ...storedSession };
   const [neutralSites, setNeutralSites, neutralLoaded] = useStored<string[]>("neutralSites", []);
   const [daily] = useStored<Record<string, DayRecord>>("dailyData", {});
-  const [stayed, setStayed] = useState(false);
   const now = useNow();
 
   const domain = extractDomain(location.href);
@@ -151,7 +150,7 @@ function FabCard({
         {!tracking && <div className="text-amber-300/80">Paused · inactive</div>}
       </div>
 
-      {ready && category === "unproductive" && !stayed && (
+      {ready && category === "unproductive" && (
         <>
           {divider}
           <div className="text-[11px] leading-tight">
@@ -160,12 +159,6 @@ function FabCard({
             </div>
             <div className="text-white/50">{clock(distracted)} distracted today</div>
           </div>
-          <Button size="sm" className={chip} onClick={() => history.back()}>
-            Leave
-          </Button>
-          <Button size="sm" variant="brandOutline" className={chip} onClick={() => setStayed(true)}>
-            Stay
-          </Button>
         </>
       )}
 
