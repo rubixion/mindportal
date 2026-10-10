@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { motion, useMotionValue } from "motion/react";
+import { MotionConfig, motion, useMotionValue } from "motion/react";
 import { ChevronLeft, ChevronRight, Play, Scaling, Square, X } from "lucide-react";
 import css from "../panel/styles.css?inline";
 import { Panel } from "../panel/Panel";
@@ -62,14 +62,24 @@ function FabCard({ left, onCollapse }: { left: boolean; onCollapse: () => void }
   // unsaved seconds here; capped so a stalled worker can't run the numbers away
   const savedAt = useRef(Date.now());
   useEffect(() => void (savedAt.current = Date.now()), [daily]);
-  const live = document.visibilityState === "visible" && document.hasFocus() ? Math.min(60, (now - savedAt.current) / 1000) : 0;
+  const live =
+    document.visibilityState === "visible" && document.hasFocus()
+      ? Math.min(60, (now - savedAt.current) / 1000)
+      : 0;
   const focused = (today?.productiveSeconds ?? 0) + (category === "productive" ? live : 0);
   const distracted = (today?.unproductiveSeconds ?? 0) + (category === "unproductive" ? live : 0);
-  const remaining = session.pomodoroActive && session.pomodoroEndTime ? (session.pomodoroEndTime - now) / 1000 : null;
+  const remaining =
+    session.pomodoroActive && session.pomodoroEndTime
+      ? (session.pomodoroEndTime - now) / 1000
+      : null;
 
   const mark = (kind: Kind | null) => {
     const strip = (l: string[]) => l.filter((d) => d !== domain);
-    const next = { ...settings, productiveSites: strip(settings.productiveSites), unproductiveSites: strip(settings.unproductiveSites) };
+    const next = {
+      ...settings,
+      productiveSites: strip(settings.productiveSites),
+      unproductiveSites: strip(settings.unproductiveSites),
+    };
     if (kind) next[kind] = [...next[kind], domain];
     setSettings(next);
     setNeutralSites(kind ? strip(neutralSites) : [...strip(neutralSites), domain]);
@@ -107,7 +117,9 @@ function FabCard({ left, onCollapse }: { left: boolean; onCollapse: () => void }
         {remaining !== null ? <Square className="size-3.5" /> : <Play className="size-4" />}
       </Button>
       <div className="leading-tight">
-        <div className="text-[15px] font-bold tabular-nums">{formatCountdown(remaining ?? settings.pomodoroWorkMinutes * 60)}</div>
+        <div className="text-[15px] font-bold tabular-nums">
+          {formatCountdown(remaining ?? settings.pomodoroWorkMinutes * 60)}
+        </div>
         <div className="text-[10px] font-semibold tracking-[0.08em] text-white/40 uppercase">
           {remaining === null ? "Pomodoro" : session.pomodoroIsBreak ? "Break" : "Focus"}
         </div>
@@ -115,19 +127,31 @@ function FabCard({ left, onCollapse }: { left: boolean; onCollapse: () => void }
 
       {divider}
       <div className="space-y-0.5 text-[11px] leading-tight text-white/60 tabular-nums">
-        <div><span className="mr-1.5 inline-block size-1.5 rounded-full bg-green-400" />Focused <b className="text-white">{clock(focused)}</b></div>
-        <div><span className="mr-1.5 inline-block size-1.5 rounded-full bg-red-400" />Distracted <b className="text-white">{clock(distracted)}</b></div>
+        <div>
+          <span className="mr-1.5 inline-block size-1.5 rounded-full bg-green-400" />
+          Focused <b className="text-white">{clock(focused)}</b>
+        </div>
+        <div>
+          <span className="mr-1.5 inline-block size-1.5 rounded-full bg-red-400" />
+          Distracted <b className="text-white">{clock(distracted)}</b>
+        </div>
       </div>
 
       {category === "unproductive" && !stayed && (
         <>
           {divider}
           <div className="text-[11px] leading-tight">
-            <div className="font-semibold text-red-300">Distracting site. Sure you want to be here?</div>
+            <div className="font-semibold text-red-300">
+              Distracting site. Sure you want to be here?
+            </div>
             <div className="text-white/50">{clock(distracted)} distracted today</div>
           </div>
-          <Button size="sm" className={chip} onClick={() => history.back()}>Leave</Button>
-          <Button size="sm" variant="brandOutline" className={chip} onClick={() => setStayed(true)}>Stay</Button>
+          <Button size="sm" className={chip} onClick={() => history.back()}>
+            Leave
+          </Button>
+          <Button size="sm" variant="brandOutline" className={chip} onClick={() => setStayed(true)}>
+            Stay
+          </Button>
         </>
       )}
 
@@ -135,11 +159,29 @@ function FabCard({ left, onCollapse }: { left: boolean; onCollapse: () => void }
         <>
           {divider}
           <div className="space-y-1">
-            <div className="text-[10px] font-semibold tracking-[0.08em] text-white/40 uppercase">Mark this site</div>
+            <div className="text-[10px] font-semibold tracking-[0.08em] text-white/40 uppercase">
+              Mark this site
+            </div>
             <div className="flex gap-1">
-              <Button size="sm" variant="brandOutline" className={chip} onClick={() => mark("unproductiveSites")}>Distracting</Button>
-              <Button size="sm" variant="brandOutline" className={chip} onClick={() => mark("productiveSites")}>Focus</Button>
-              <Button size="sm" variant="brandOutline" className={chip} onClick={() => mark(null)}>Neutral</Button>
+              <Button
+                size="sm"
+                variant="brandOutline"
+                className={chip}
+                onClick={() => mark("unproductiveSites")}
+              >
+                Distracting
+              </Button>
+              <Button
+                size="sm"
+                variant="brandOutline"
+                className={chip}
+                onClick={() => mark("productiveSites")}
+              >
+                Focus
+              </Button>
+              <Button size="sm" variant="brandOutline" className={chip} onClick={() => mark(null)}>
+                Neutral
+              </Button>
             </div>
           </div>
         </>
@@ -164,8 +206,25 @@ function Overlay() {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const scale = useMotionValue(1);
+  // page zoom (Ctrl +/-); the button is CSS-zoomed by 1/zoom so it keeps its on-screen size and spot.
+  // Its own px are then page px * zoom, which is also the unit fabPos is stored in.
+  const [zoom, setZoom] = useState(1);
+  useEffect(() => {
+    send<number>({ type: "GET_ZOOM" }).then(
+      (z) => typeof z === "number" && setZoom(z),
+      () => {}
+    );
+    const onMsg = (m: { type?: string; zoom?: number }) =>
+      void (m?.type === "MP_ZOOM" && m.zoom && setZoom(m.zoom));
+    chrome.runtime.onMessage.addListener(onMsg);
+    return () => chrome.runtime.onMessage.removeListener(onMsg);
+  }, []);
+  const toFab = useCallback(
+    (p: { x: number; y: number }) => ({ x: p.x * zoom, y: p.y * zoom }),
+    [zoom]
+  );
   // the button rests at right-4 (52px wide), so its centre is offset from there by the drag
-  const left = innerWidth - 42 + fabPos.x > innerWidth / 2;
+  const left = innerWidth * zoom - 42 + fabPos.x > (innerWidth * zoom) / 2;
 
   useEffect(() => {
     x.set(fabPos.x);
@@ -180,7 +239,8 @@ function Overlay() {
     el.setPointerCapture(e.pointerId);
     const startY = e.clientY;
     const start = scale.get();
-    const move = (ev: PointerEvent) => scale.set(Math.min(1.8, Math.max(0.6, start + (startY - ev.clientY) / 100)));
+    const move = (ev: PointerEvent) =>
+      scale.set(Math.min(1.8, Math.max(0.6, start + ((startY - ev.clientY) * zoom) / 100)));
     const up = () => {
       el.removeEventListener("pointermove", move);
       el.removeEventListener("pointerup", up);
@@ -201,60 +261,66 @@ function Overlay() {
       {/* viewport-sized box that the button and panel are dragged within */}
       <div ref={bounds} className="pointer-events-none fixed inset-2" />
       {showFab && !open && (
-        <motion.div
-          drag
-          dragConstraints={bounds}
-          dragMomentum={false}
-          dragElastic={0}
-          style={{ x, y, scale }}
-          onPointerDown={() => (dragged.current = false)}
-          onDragStart={() => (dragged.current = true)}
-          onDragEnd={() => setFabPos({ x: x.get(), y: y.get() })}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="group fixed right-4 bottom-4 size-[52px] touch-none"
-        >
-          <button
-            type="button"
-            aria-label="Open MindPortal (Alt+M). Drag to move."
-            title="MindPortal (Alt+M) · drag to move"
-            onClick={() => !dragged.current && setOpen(true)}
-            className="flex size-full cursor-pointer items-center justify-center rounded-full border border-(--ollie-cyan)/30 bg-[#15172b] shadow-[0_8px_30px_rgba(0,0,0,0.45),0_0_0_4px_var(--ollie-glow)] outline-none transition-transform hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-(--ollie-cyan)"
+        <MotionConfig transformPagePoint={toFab}>
+          <motion.div
+            drag
+            dragConstraints={bounds}
+            dragMomentum={false}
+            dragElastic={0}
+            style={{ x, y, scale, zoom: 1 / zoom }}
+            onPointerDown={() => (dragged.current = false)}
+            onDragStart={() => (dragged.current = true)}
+            onDragEnd={() => setFabPos({ x: x.get(), y: y.get() })}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="group fixed right-4 bottom-4 size-[52px] touch-none"
           >
-            <Ollie size={30} />
-          </button>
-          <button
-            type="button"
-            aria-label={`Hide the MindPortal button on ${site}`}
-            title={`Hide on ${site} (bring it back in Settings)`}
-            onClick={() => setHiddenSites((all) => [...all, site])}
-            className="absolute -top-1 -left-1 flex size-5 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-[#0b0b0e] text-white/70 opacity-0 transition-opacity outline-none hover:text-white group-hover:opacity-100 focus-visible:opacity-100"
-          >
-            <X className="size-3" />
-          </button>
-          <button
-            type="button"
-            aria-label="Resize. Drag up to grow, down to shrink."
-            title="Drag up/down to resize"
-            onPointerDown={startResize}
-            className="absolute -top-1 -right-1 flex size-5 cursor-ns-resize touch-none items-center justify-center rounded-full border border-white/15 bg-[#0b0b0e] text-white/70 opacity-0 transition-opacity outline-none hover:text-white group-hover:opacity-100 focus-visible:opacity-100"
-          >
-            <Scaling className="size-3" />
-          </button>
-          {collapsed ? (
             <button
               type="button"
-              aria-label="Show focus bar"
-              title="Show focus bar"
-              onClick={() => setCollapsed(false)}
-              className={`absolute top-1/2 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-(--ollie-cyan)/30 bg-[#15172b] text-white/60 outline-none hover:text-white focus-visible:ring-2 focus-visible:ring-(--ollie-cyan) ${left ? "-left-8" : "-right-8"}`}
+              aria-label="Open MindPortal (Alt+M). Drag to move."
+              title="MindPortal (Alt+M) · drag to move"
+              onClick={() => !dragged.current && setOpen(true)}
+              className="flex size-full cursor-pointer items-center justify-center rounded-full border border-(--ollie-cyan)/30 bg-[#15172b] shadow-[0_8px_30px_rgba(0,0,0,0.45),0_0_0_4px_var(--ollie-glow)] outline-none transition-transform hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-(--ollie-cyan)"
             >
-              {left ? <ChevronLeft className="size-4" /> : <ChevronRight className="size-4" />}
+              <Ollie size={30} />
             </button>
-          ) : (
-            <FabCard left={left} onCollapse={() => setCollapsed(true)} />
-          )}
-        </motion.div>
+            <button
+              type="button"
+              aria-label={`Hide the MindPortal button on ${site}`}
+              title={`Hide on ${site} (bring it back in Settings)`}
+              onClick={() => setHiddenSites((all) => [...all, site])}
+              className="absolute -top-1 -left-1 flex size-5 cursor-pointer items-center justify-center rounded-full border border-white/15 bg-[#0b0b0e] text-white/70 opacity-0 transition-opacity outline-none hover:text-white group-hover:opacity-100 focus-visible:opacity-100"
+            >
+              <X className="size-3" />
+            </button>
+            <button
+              type="button"
+              aria-label="Resize. Drag up to grow, down to shrink."
+              title="Drag up/down to resize"
+              onPointerDown={startResize}
+              className="absolute -top-1 -right-1 flex size-5 cursor-ns-resize touch-none items-center justify-center rounded-full border border-white/15 bg-[#0b0b0e] text-white/70 opacity-0 transition-opacity outline-none hover:text-white group-hover:opacity-100 focus-visible:opacity-100"
+            >
+              <Scaling className="size-3" />
+            </button>
+            {collapsed ? (
+              <button
+                type="button"
+                aria-label="Show focus bar"
+                title="Show focus bar"
+                onClick={() => setCollapsed(false)}
+                className={`absolute top-1/2 flex h-8 w-4 -translate-y-1/2 cursor-pointer items-center justify-center text-white/35 outline-none transition-colors hover:text-white focus-visible:text-white ${left ? "-left-4" : "-right-4"}`}
+              >
+                {left ? (
+                  <ChevronLeft className="size-3.5" />
+                ) : (
+                  <ChevronRight className="size-3.5" />
+                )}
+              </button>
+            ) : (
+              <FabCard left={left} onCollapse={() => setCollapsed(true)} />
+            )}
+          </motion.div>
+        </MotionConfig>
       )}
       <Panel open={open} onClose={close} bounds={bounds} />
     </>
@@ -276,7 +342,8 @@ export function mountOverlay() {
   const mount = document.createElement("div");
   shadow.append(style, mount);
   // keep typing in the panel from triggering the page's own keyboard shortcuts
-  for (const type of ["keydown", "keyup", "keypress"]) host.addEventListener(type, (e) => e.stopPropagation());
+  for (const type of ["keydown", "keyup", "keypress"])
+    host.addEventListener(type, (e) => e.stopPropagation());
   document.documentElement.append(host);
   createRoot(mount).render(<Overlay />);
 }

@@ -574,6 +574,10 @@
     right: calc(var(--spacing) * -1);
   }
 
+  .-right-4 {
+    right: calc(var(--spacing) * -4);
+  }
+
   .-right-8 {
     right: calc(var(--spacing) * -8);
   }
@@ -620,6 +624,10 @@
 
   .-left-1 {
     left: calc(var(--spacing) * -1);
+  }
+
+  .-left-4 {
+    left: calc(var(--spacing) * -4);
   }
 
   .-left-8 {
@@ -1025,6 +1033,10 @@
 
   .w-2\.5 {
     width: calc(var(--spacing) * 2.5);
+  }
+
+  .w-4 {
+    width: calc(var(--spacing) * 4);
   }
 
   .w-8 {
@@ -2781,6 +2793,10 @@
     .focus-visible\:border-\(--ollie-cyan\)\/60:focus-visible {
       border-color: color-mix(in oklab, var(--ollie-cyan) 60%, transparent);
     }
+  }
+
+  .focus-visible\:text-white:focus-visible {
+    color: var(--color-white);
   }
 
   .focus-visible\:opacity-100:focus-visible {

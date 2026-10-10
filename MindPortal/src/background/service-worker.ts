@@ -436,12 +436,22 @@ async function handlePomodoroEnd(skipped = false) {
 
 // ─── Message Handlers (from popup / content) ─────────────────────────────────
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // the overlay cancels out page zoom so the floating button keeps its size and spot
+  if (message?.type === "GET_ZOOM") {
+    if (sender.tab?.id === undefined) return false;
+    chrome.tabs.getZoom(sender.tab.id).then(sendResponse, () => sendResponse(1));
+    return true;
+  }
   handleMessage(message).then(sendResponse).catch((err) => {
     console.error("MindPortal message error:", err);
     sendResponse({ error: String(err) });
   });
   return true; // async response
+});
+
+chrome.tabs.onZoomChange.addListener(({ tabId, newZoomFactor }) => {
+  chrome.tabs.sendMessage(tabId, { type: "MP_ZOOM", zoom: newZoomFactor }).catch(() => {});
 });
 
 async function handleMessage(message: Record<string, unknown>): Promise<unknown> {
