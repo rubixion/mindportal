@@ -14475,6 +14475,28 @@ function createLucideIcon(iconDataOrName, iconNode = [], aliases2 = []) {
  * This source code is licensed under the ISC license.
  * See the LICENSE file in the root directory of this source tree.
  */
+const __iconData$4 = {
+  name: "eye",
+  size: 24,
+  node: [
+    [
+      "path",
+      {
+        d: "M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0",
+        key: "1nclc0"
+      }
+    ],
+    ["circle", { cx: "12", cy: "12", r: "3", key: "1v7zrd" }]
+  ]
+};
+__iconData$4.node;
+const Eye = createLucideIcon(__iconData$4);
+/**
+ * @license lucide-react v1.53.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */
 const __iconData$3 = {
   name: "flame",
   size: 24,
@@ -18039,11 +18061,26 @@ function Ollie({ mood = "happy", size = 48 }) {
 }
 function Popup() {
   const now2 = useNow();
-  const [settings] = useStored("settings", DEFAULT_SETTINGS);
+  const [settings, setSettings] = useStored("settings", DEFAULT_SETTINGS);
+  const [hiddenSites, setHiddenSites] = useStored("fabHiddenSites", []);
+  const [site, setSite] = reactExports.useState("");
   const [session] = useStored("session", DEFAULT_SESSION);
   const [streak] = useStored("streak", DEFAULT_STREAK);
   const [dailyData] = useStored("dailyData", {});
   const [error, setError] = reactExports.useState("");
+  reactExports.useEffect(() => {
+    chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
+      try {
+        if (tab?.url?.startsWith("http")) setSite(new URL(tab.url).hostname);
+      } catch {
+      }
+    });
+  }, []);
+  const fabHidden = settings.showOverlayButton === false || site !== "" && hiddenSites.includes(site);
+  const showFab = () => {
+    if (settings.showOverlayButton === false) setSettings({ ...DEFAULT_SETTINGS, ...settings, showOverlayButton: true });
+    setHiddenSites(hiddenSites.filter((s) => s !== site));
+  };
   const record = dailyData[toDateString()];
   const score = record?.score ?? 0;
   const openPanel = async (tab) => {
@@ -18098,6 +18135,11 @@ function Popup() {
     /* @__PURE__ */ jsxRuntimeExports.jsxs(Button, { size: "cta", className: "w-full", onClick: () => openPanel(), children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(PanelRightOpen, { className: "size-4" }),
       " Open MindPortal panel"
+    ] }),
+    fabHidden && /* @__PURE__ */ jsxRuntimeExports.jsxs(Button, { variant: "ghost", className: "w-full", onClick: showFab, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(Eye, { className: "size-4" }),
+      " Show floating button",
+      site && settings.showOverlayButton !== false ? ` on ${site}` : ""
     ] }),
     error && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs leading-snug text-orange-300", role: "alert", children: error }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-center text-[11px] text-white/35", children: "Notes, lists, calendar & more live in the panel · Alt+M" })

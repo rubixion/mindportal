@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Flame, PanelRightOpen, Play, Settings as Gear } from "lucide-react";
+import { Eye, Flame, PanelRightOpen, Play, Settings as Gear } from "lucide-react";
 import "../panel/styles.css";
 import { AnimatedCircularProgressBar } from "../panel/components/ui/animated-circular-progress-bar";
 import { Button } from "../panel/components/ui/button";
@@ -13,11 +13,25 @@ import type { ActiveSession, DayRecord, Settings, StreakData } from "../shared/t
 // The popup stays small on purpose: glance at today, then open the in-page panel for everything else.
 function Popup() {
   const now = useNow();
-  const [settings] = useStored<Settings>("settings", DEFAULT_SETTINGS);
+  const [settings, setSettings] = useStored<Settings>("settings", DEFAULT_SETTINGS);
+  const [hiddenSites, setHiddenSites] = useStored<string[]>("fabHiddenSites", []);
+  const [site, setSite] = useState("");
   const [session] = useStored<ActiveSession>("session", DEFAULT_SESSION);
   const [streak] = useStored<StreakData>("streak", DEFAULT_STREAK);
   const [dailyData] = useStored<Record<string, DayRecord>>("dailyData", {});
   const [error, setError] = useState("");
+
+  // the overlay keys hidden sites by location.hostname, so match that exactly
+  useEffect(() => {
+    chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
+      try { if (tab?.url?.startsWith("http")) setSite(new URL(tab.url).hostname); } catch { /* no site */ }
+    });
+  }, []);
+  const fabHidden = settings.showOverlayButton === false || (site !== "" && hiddenSites.includes(site));
+  const showFab = () => {
+    if (settings.showOverlayButton === false) setSettings({ ...DEFAULT_SETTINGS, ...settings, showOverlayButton: true });
+    setHiddenSites(hiddenSites.filter((s) => s !== site));
+  };
 
   const record = dailyData[toDateString()];
   const score = record?.score ?? 0;
@@ -61,6 +75,11 @@ function Popup() {
       <Button size="cta" className="w-full" onClick={() => openPanel()}>
         <PanelRightOpen className="size-4" /> Open MindPortal panel
       </Button>
+      {fabHidden && (
+        <Button variant="ghost" className="w-full" onClick={showFab}>
+          <Eye className="size-4" /> Show floating button{site && settings.showOverlayButton !== false ? ` on ${site}` : ""}
+        </Button>
+      )}
       {error && <p className="text-xs leading-snug text-orange-300" role="alert">{error}</p>}
       <p className="text-center text-[11px] text-white/35">Notes, lists, calendar & more live in the panel · Alt+M</p>
     </div>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { motion, useMotionValue } from "motion/react";
-import { Play, Square, Timer, X } from "lucide-react";
+import { Play, Square, X } from "lucide-react";
 import css from "../panel/styles.css?inline";
 import { Panel } from "../panel/Panel";
 import { Ollie } from "../panel/components/ollie";
@@ -36,7 +36,7 @@ type Pos = { x: number; y: number };
 type Kind = "productiveSites" | "unproductiveSites";
 
 /** Stats / pomodoro / distraction card that sits beside the floating button. */
-function FabCard({ left, up }: { left: boolean; up: boolean }) {
+function FabCard({ left }: { left: boolean }) {
   const [stored, setSettings] = useStored<Settings>("settings", DEFAULT_SETTINGS);
   const settings = { ...DEFAULT_SETTINGS, ...stored };
   const [storedSession] = useStored<ActiveSession>("session", DEFAULT_SESSION);
@@ -60,51 +60,62 @@ function FabCard({ left, up }: { left: boolean; up: boolean }) {
     setNeutralSites(kind ? strip(neutralSites) : [...strip(neutralSites), domain]);
   };
 
+  const divider = <div className="h-7 w-px shrink-0 bg-white/10" />;
+  const chip = "h-6 rounded-md px-2 text-[11px]";
+
   return (
     <div
-      // clicks in the card shouldn't start dragging the button
+      // clicks in the bar shouldn't start dragging the button
       onPointerDown={(e) => e.stopPropagation()}
-      className={`mp-card absolute w-64 space-y-3 p-3 text-white shadow-[0_8px_30px_rgba(0,0,0,0.45)] ${left ? "right-full mr-3" : "left-full ml-3"} ${up ? "bottom-0" : "top-0"}`}
+      className={`absolute top-0 flex h-[52px] items-center gap-3 rounded-full border border-(--ollie-cyan)/30 bg-[#15172b] px-2 pr-4 font-sans whitespace-nowrap text-white shadow-[0_8px_30px_rgba(0,0,0,0.45),0_0_0_4px_var(--ollie-glow)] ${left ? "right-full mr-3" : "left-full ml-3"}`}
     >
-      {category === "unproductive" && !stayed && (
-        <div className="space-y-2 rounded-xl border border-red-400/25 bg-red-400/10 p-2.5">
-          <p className="text-sm font-semibold text-red-200">This site is distracting. Are you sure you want to be here?</p>
-          <p className="text-xs text-red-200/70">Time distracted today: {formatDuration(today?.unproductiveSeconds ?? 0)}</p>
-          <div className="grid grid-cols-2 gap-1.5">
-            <Button size="sm" onClick={() => history.back()}>Leave</Button>
-            <Button size="sm" variant="brandOutline" onClick={() => setStayed(true)}>I'm sure</Button>
-          </div>
+      <Button
+        size="icon"
+        className="size-9 shrink-0 rounded-full"
+        variant={remaining !== null ? "brandOutline" : "brand"}
+        aria-label={remaining !== null ? "Stop timer" : "Start timer"}
+        title={remaining !== null ? "Stop timer" : "Start timer"}
+        onClick={() => send({ type: remaining !== null ? "STOP_POMODORO" : "START_POMODORO" })}
+      >
+        {remaining !== null ? <Square className="size-3.5" /> : <Play className="size-4" />}
+      </Button>
+      <div className="leading-tight">
+        <div className="text-[15px] font-bold tabular-nums">{formatCountdown(remaining ?? settings.pomodoroWorkMinutes * 60)}</div>
+        <div className="text-[10px] font-semibold tracking-[0.08em] text-white/40 uppercase">
+          {remaining === null ? "Pomodoro" : session.pomodoroIsBreak ? "Break" : "Focus"}
         </div>
+      </div>
+
+      {divider}
+      <div className="space-y-0.5 text-[11px] leading-tight text-white/60">
+        <div><span className="mr-1.5 inline-block size-1.5 rounded-full bg-green-400" />Focused <b className="text-white">{formatDuration(today?.productiveSeconds ?? 0)}</b></div>
+        <div><span className="mr-1.5 inline-block size-1.5 rounded-full bg-red-400" />Distracted <b className="text-white">{formatDuration(today?.unproductiveSeconds ?? 0)}</b></div>
+      </div>
+
+      {category === "unproductive" && !stayed && (
+        <>
+          {divider}
+          <div className="text-[11px] leading-tight">
+            <div className="font-semibold text-red-300">Distracting site. Sure you want to be here?</div>
+            <div className="text-white/50">{formatDuration(today?.unproductiveSeconds ?? 0)} distracted today</div>
+          </div>
+          <Button size="sm" className={chip} onClick={() => history.back()}>Leave</Button>
+          <Button size="sm" variant="brandOutline" className={chip} onClick={() => setStayed(true)}>Stay</Button>
+        </>
       )}
 
-      <div className="flex items-center gap-2">
-        <Timer className="size-4 text-(--ollie-cyan)" />
-        <span className="text-lg font-bold tabular-nums">{formatCountdown(remaining ?? settings.pomodoroWorkMinutes * 60)}</span>
-        {remaining !== null && <span className="mp-label">{session.pomodoroIsBreak ? "Break" : "Focus"}</span>}
-        <Button
-          size="sm"
-          className="ml-auto"
-          variant={remaining !== null ? "brandOutline" : "brand"}
-          onClick={() => send({ type: remaining !== null ? "STOP_POMODORO" : "START_POMODORO" })}
-        >
-          {remaining !== null ? <><Square className="size-3.5" /> Stop</> : <><Play className="size-3.5" /> Start timer</>}
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-2 gap-1.5 text-xs">
-        <div className="rounded-lg bg-green-400/10 px-2 py-1.5 text-green-200">Focused<div className="text-sm font-semibold">{formatDuration(today?.productiveSeconds ?? 0)}</div></div>
-        <div className="rounded-lg bg-red-400/10 px-2 py-1.5 text-red-200">Not focused<div className="text-sm font-semibold">{formatDuration(today?.unproductiveSeconds ?? 0)}</div></div>
-      </div>
-
       {unmarked && (
-        <div className="space-y-1.5 border-t border-white/10 pt-2.5">
-          <span className="mp-label">Mark {domain} as</span>
-          <div className="grid grid-cols-3 gap-1.5">
-            <Button size="sm" variant="brandOutline" onClick={() => mark("unproductiveSites")}>Distracting</Button>
-            <Button size="sm" variant="brandOutline" onClick={() => mark("productiveSites")}>Focus</Button>
-            <Button size="sm" variant="brandOutline" onClick={() => mark(null)}>Neutral</Button>
+        <>
+          {divider}
+          <div className="space-y-1">
+            <div className="text-[10px] font-semibold tracking-[0.08em] text-white/40 uppercase">Mark this site</div>
+            <div className="flex gap-1">
+              <Button size="sm" variant="brandOutline" className={chip} onClick={() => mark("unproductiveSites")}>Distracting</Button>
+              <Button size="sm" variant="brandOutline" className={chip} onClick={() => mark("productiveSites")}>Focus</Button>
+              <Button size="sm" variant="brandOutline" className={chip} onClick={() => mark(null)}>Neutral</Button>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
@@ -170,8 +181,8 @@ function Overlay() {
           >
             <X className="size-3" />
           </button>
-          {/* the button rests at right-4 bottom-4 (52px), so its centre is offset from there by the drag */}
-          <FabCard left={innerWidth - 42 + fabPos.x > innerWidth / 2} up={innerHeight - 42 + fabPos.y > innerHeight / 2} />
+          {/* the button rests at right-4 (52px wide), so its centre is offset from there by the drag */}
+          <FabCard left={innerWidth - 42 + fabPos.x > innerWidth / 2} />
         </motion.div>
       )}
       <Panel open={open} onClose={close} bounds={bounds} />
